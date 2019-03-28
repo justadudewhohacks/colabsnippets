@@ -1,5 +1,6 @@
 import cv2
 import math
+import numpy as np
 
 def resize_preserve_aspect_ratio(img, size):
   height, width = img.shape[:2]

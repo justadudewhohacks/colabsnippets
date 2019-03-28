@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 from .utils import shuffle_array
 from .preprocess import resize_preserve_aspect_ratio, pad_to_square
