@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from .WeightInitializer import WeightInitializer
+
 class NeuralNetwork:
   def __init__(self, initialize_weights, name = None):
     self.initialize_weights = initialize_weights
