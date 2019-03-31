@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from ..NeuralNetwork import NeuralNetwork
-from ..ops import dense_block
+from ..ops import dense_block, normalize
 
 class Densenet_4_4_FeatureExtractor(NeuralNetwork):
   def __init__(self, use_depthwise_separable_conv2d = True, with_batch_norm = False, name = 'densenet_4_4_feature_extractor', channel_multiplier = 1.0, is_scale_down_first_layer = True):

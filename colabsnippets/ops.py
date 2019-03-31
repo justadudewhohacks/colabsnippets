@@ -1,5 +1,15 @@
 import tensorflow as tf
 
+def normalize(x, mean_rgb):
+  r, g, b = mean_rgb
+  shape = np.append(np.array(x.shape[0 : 3]), [1])
+  avg_r = tf.fill(shape, r)
+  avg_g = tf.fill(shape, g)
+  avg_b = tf.fill(shape, b)
+  avg_rgb = tf.concat([avg_r, avg_g, avg_b], 3)
+
+  return tf.divide(tf.subtract(x, avg_rgb), 255)
+
 def batch_norm(x, name):
   with tf.variable_scope(name):
     return tf.nn.batch_normalization(x, tf.get_variable('mean'), tf.get_variable('variance'), tf.get_variable('offset'), tf.get_variable('scale'), 1e-3)
