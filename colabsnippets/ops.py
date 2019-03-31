@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 def normalize(x, mean_rgb):
   r, g, b = mean_rgb
@@ -8,7 +9,7 @@ def normalize(x, mean_rgb):
   avg_b = tf.fill(shape, b)
   avg_rgb = tf.concat([avg_r, avg_g, avg_b], 3)
 
-  return tf.divide(tf.subtract(x, avg_rgb), 255)
+  return tf.divide(tf.subtract(x, avg_rgb), 256)
 
 def batch_norm(x, name):
   with tf.variable_scope(name):
