@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from .WeightInitializer import WeightInitializer
+from .utils import load_json
 
 class NeuralNetwork:
   def __init__(self, initialize_weights, name = None):
