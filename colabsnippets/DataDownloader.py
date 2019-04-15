@@ -28,7 +28,7 @@ class DataDownloader():
     subprocess.run(["p7zip", "-d", "./landmarks.7z"], cwd = data_dir)
     print("unzipping landmarks done in {}s".format(time.time() - ts))
 
-  def download_data(dbs_dict):
+  def download_data(self, dbs_dict):
     mk_dir_if_not_exists(self.data_dir)
 
     ts = time.time()
