@@ -8,7 +8,9 @@ from colabsnippets.nn import (
   Densenet_4_5_FeatureExtractor,
   Densenet_4_4,
   Densenet_4_5,
-  Densenet_4_4_DEX
+  Densenet_4_4_DEX,
+  MobilenetV2,
+  XceptionTiny
 )
 
 def create_fake_input_tensor(image_size):
@@ -44,4 +46,12 @@ class Test_nn(unittest.TestCase):
 
   def test_Densenet_4_4_DEX(self):
     net = Densenet_4_4_DEX()
+    test_net(net, create_fake_input_tensor(112), [1])
+
+  def test_MobilenetV2(self):
+    net = MobilenetV2()
+    test_net(net, create_fake_input_tensor(112), [1])
+
+  def test_XceptionTiny(self):
+    net = XceptionTiny()
     test_net(net, create_fake_input_tensor(112), [1])

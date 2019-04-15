@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from ..NeuralNetwork import NeuralNetwork
-from ..ops import bottleneck, normalized
+from ..ops import bottleneck, normalize, conv2d, depthwise_separable_conv2d
 
 class MobilenetV2(NeuralNetwork):
   def __init__(self, name = 'mobilenetv2'):
