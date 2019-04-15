@@ -55,3 +55,11 @@ def dense_block(x, name, is_first_layer = False, is_scale_down = True, use_depth
     out4 = conv_op(in4, 'conv3', [1, 1, 1, 1], with_batch_norm = with_batch_norm)
 
     return tf.nn.relu(tf.add(out1, tf.add(out2, tf.add(out3, out4))))
+
+def bottleneck(x, name, stride, is_residual = False):
+  with tf.variable_scope(name):
+    out = conv2d(x, 'expansion_conv', [1, 1, 1, 1])
+    out = depthwise_separable_conv2d(out, 'separable_conv', stride)
+    if is_residual:
+      out = tf.add(x, out)
+    return tf.nn.relu6(out)
