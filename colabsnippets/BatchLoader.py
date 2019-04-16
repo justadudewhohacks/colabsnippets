@@ -7,7 +7,7 @@ from .preprocess import resize_preserve_aspect_ratio, pad_to_square
 class BatchLoader:
   def __init__(
     self,
-    data,
+    get_epoch_data,
     resolve_image_path,
     extract_data_labels,
     augment_image = None,
@@ -17,13 +17,13 @@ class BatchLoader:
     if not is_test and start_epoch == None:
       raise Exception('DataLoader - start_epoch has to be defined in train mode')
 
-    self.data = data
+    self.get_epoch_data = get_epoch_data
     self.resolve_image_path = resolve_image_path
     self.extract_data_labels = extract_data_labels
     self.augment_image = augment_image
     self.is_test = is_test
     self.epoch = start_epoch
-    self.buffered_data = shuffle_array(self.data) if not is_test else self.data
+    self.buffered_data = shuffle_array(self.get_epoch_data()) if not is_test else self.get_epoch_data()
     self.current_idx = 0
 
   def get_end_idx(self):
@@ -75,7 +75,7 @@ class BatchLoader:
           return None
       else:
         self.epoch += 1
-        self.buffered_data = self.buffered_data[from_idx:] + shuffle_array(self.data)
+        self.buffered_data = self.buffered_data[from_idx:] + shuffle_array(self.get_epoch_data())
         from_idx = 0
         to_idx = batch_size
 
