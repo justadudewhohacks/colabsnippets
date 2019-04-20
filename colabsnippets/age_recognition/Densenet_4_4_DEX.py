@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from .Densenet_4_4_FeatureExtractor import Densenet_4_4_FeatureExtractor
+from ..nn import Densenet_4_4_FeatureExtractor
 from ..ops import fully_connected
 
 class Densenet_4_4_DEX(Densenet_4_4_FeatureExtractor):

@@ -35,9 +35,6 @@ class XceptionTiny(NeuralNetwork):
         process_reduction_block_weights(128, 256, 'reduction_block')
         weight_processor.process_depthwise_separable_conv2d_weights(256, 512, 'separable_conv')
 
-      with tf.variable_scope('classifier'):
-        weight_processor.process_fc_weights(512, 1, 'fc_age')
-
   def reduction_block(self, x, name, is_activate_input = True):
     out = x
     with tf.variable_scope(name):
@@ -74,10 +71,5 @@ class XceptionTiny(NeuralNetwork):
       with tf.variable_scope('exit_flow'):
         out = self.reduction_block(out, 'reduction_block')
         out = tf.nn.relu(depthwise_separable_conv2d(out, 'separable_conv', [1, 1, 1, 1]))
-
-      with tf.variable_scope('classifier'):
-        out = tf.nn.avg_pool(out, [1, 7, 7, 1], [1, 2, 2, 1], 'VALID')
-        out = fully_connected(out, 'fc_age')
-        out = tf.reshape(out, [out.shape[0]])
 
     return out
