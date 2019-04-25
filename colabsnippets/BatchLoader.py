@@ -57,7 +57,7 @@ class BatchLoader:
     labels = []
     for data in datas:
       labels.append(self.extract_data_labels(data))
-    return np.stack(labels, axis = 0)
+    return labels
 
   def next_batch(self, batch_size, image_size = 112):
     if batch_size < 1:
