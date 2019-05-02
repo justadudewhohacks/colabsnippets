@@ -29,14 +29,11 @@ class BatchLoader:
   def get_end_idx(self):
     return len(self.buffered_data)
 
-  def load_image(self, data, image_size):
-    db = data['db']
-    img_file = data['file']
-    file_suffix = 'chip_0' if db == 'utk' else ('face_0' if db == 'appareal' else '')
-    landmarks_file = img_file.replace(file_suffix + '.jpg', file_suffix + '.json')
-    landmarks_file_path = './data/' + db + '/landmarks/' + landmarks_file
-
-    img = cv2.imread(self.resolve_image_path(data))
+  def load_image(self, data, image_size, rgb = True):
+    img_file_path = self.resolve_image_path(data)
+    img = cv2.imread(img_file_path)
+    if rgb:
+      img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     if img is None:
       raise Exception('failed to read image from path: ' + img_file_path)
 

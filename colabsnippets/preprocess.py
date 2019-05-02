@@ -6,7 +6,6 @@ def resize_preserve_aspect_ratio(img, size):
   height, width = img.shape[:2]
   max_dim = max(height, width)
   ratio = size / float(max_dim)
-  shape = (height * ratio, width * ratio)
   resized_img = cv2.resize(img, (int(round(width * ratio)), int(round(height * ratio))))
 
   return resized_img

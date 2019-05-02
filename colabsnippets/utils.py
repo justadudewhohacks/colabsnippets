@@ -14,7 +14,7 @@ def shuffle_array(arr):
   return arr_clone
 
 def save_weights(var_list, checkpoint_file):
-  checkpoint_data = np.array([])
+  checkpoint_data = np.array([], dtype = 'float32')
   meta_data = []
   for var in var_list:
     meta_data.append({ 'shape': var.get_shape().as_list(), 'name': var.name })
