@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 from .utils import shuffle_array
-from .preprocess import resize_preserve_aspect_ratio, pad_to_square
 
 class BatchLoader:
   def __init__(
@@ -10,7 +9,6 @@ class BatchLoader:
     get_epoch_data,
     resolve_image_path,
     extract_data_labels,
-    augment_image = None,
     is_test = False,
     start_epoch = None
   ):
@@ -20,7 +18,6 @@ class BatchLoader:
     self.get_epoch_data = get_epoch_data
     self.resolve_image_path = resolve_image_path
     self.extract_data_labels = extract_data_labels
-    self.augment_image = augment_image
     self.is_test = is_test
     self.epoch = start_epoch
     self.buffered_data = shuffle_array(self.get_epoch_data()) if not is_test else self.get_epoch_data()
@@ -29,25 +26,22 @@ class BatchLoader:
   def get_end_idx(self):
     return len(self.buffered_data)
 
-  def load_image(self, data, image_size, rgb = True):
+  def load_image(self, data, rgb = True):
     img_file_path = self.resolve_image_path(data)
     img = cv2.imread(img_file_path)
     if rgb:
       img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     if img is None:
       raise Exception('failed to read image from path: ' + img_file_path)
-
-    if (self.augment_image is not None):
-      img = self.augment_image(img, data)
-
-    img = pad_to_square(resize_preserve_aspect_ratio(img, image_size))
-
     return img
+
+  def preprocess_image(self, image, image_size):
+    return cv2.resize(image, (image_size, image_size))
 
   def load_image_batch(self, datas, image_size):
     preprocessed_imgs = []
     for data in datas:
-      preprocessed_imgs.append(self.load_image(data, image_size))
+      preprocessed_imgs.append(self.preprocess_image(self.load_image(data), image_size))
     return np.stack(preprocessed_imgs, axis = 0)
 
   def load_labels(self, datas):
@@ -55,6 +49,11 @@ class BatchLoader:
     for data in datas:
       labels.append(self.extract_data_labels(data))
     return labels
+
+  def load_image_and_labels_batch(self, datas, image_size):
+    batch_x = self.load_image_batch(datas, image_size)
+    batch_y = self.load_labels(datas)
+    return batch_x, batch_y
 
   def next_batch(self, batch_size, image_size = 112):
     if batch_size < 1:
@@ -80,7 +79,5 @@ class BatchLoader:
 
     next_data = self.buffered_data[from_idx:to_idx]
 
-    batch_x = self.load_image_batch(next_data, image_size)
-    batch_y = self.load_labels(next_data)
-
+    batch_x, batch_y = self.load_image_and_labels_batch(next_data, image_size)
     return batch_x, batch_y
