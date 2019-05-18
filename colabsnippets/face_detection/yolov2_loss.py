@@ -52,3 +52,21 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors):
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
   return gt_coords
+
+def extract_centers_scales_and_scores(pred):
+  num_anchors = pred.shape.as_list()[3] / 5
+  get_shape = lambda size: np.concatenate((pred.shape.as_list()[0:3], [num_anchors, size]), axis = None)
+  grid_preds = tf.reshape(pred, get_shape(5))
+  grid_pred_coords = tf.slice(grid_preds, [0, 0, 0, 0, 0], get_shape(4))
+  grid_pred_scores = tf.slice(grid_preds, [0, 0, 0, 0, 4], get_shape(1))
+  return grid_pred_coords, grid_pred_scores
+
+def compile_loss_op(pred, gt_coords, mask, coord_scale = 1.0, object_scale = 5.0, no_object_scale = 1.0):
+  grid_pred_coords, grid_pred_scores = extract_centers_scales_and_scores(pred)
+  # TODO: ious
+  ious = 1
+  object_loss = object_scale * tf.reduce_sum(mask * (ious - tf.nn.sigmoid(grid_pred_scores))**2)
+  coord_loss = coord_scale * tf.reduce_sum(mask * (grid_pred_coords - gt_coords)**2)
+  no_object_loss = no_object_scale * tf.reduce_sum((1 - mask) * tf.nn.sigmoid(grid_pred_scores)**2)
+  total_loss = object_loss + coord_loss + no_object_loss
+  return total_loss, object_loss, coord_loss, no_object_loss
