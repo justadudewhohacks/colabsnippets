@@ -24,11 +24,11 @@ class Test_get_box_grid_position(unittest.TestCase):
     self.assertEqual(2, col)
     self.assertEqual(4, row)
 
-  def test_grid_position_10_10(self):
+  def test_grid_position_9_9(self):
     col, row, anchor_idx = get_box_grid_position((1.0, 1.0, 0.1, 0.1), 10, [(1.0, 1.0)])
     self.assertEqual(0, anchor_idx)
-    self.assertEqual(10, col)
-    self.assertEqual(10, row)
+    self.assertEqual(9, col)
+    self.assertEqual(9, row)
 
 
   def test_grid_position_ct_1_1(self):
@@ -55,11 +55,11 @@ class Test_get_box_grid_position(unittest.TestCase):
     self.assertEqual(0, col)
     self.assertEqual(0, row)
 
-  def test_grid_position_exceeds_positive_10_10(self):
+  def test_grid_position_exceeds_positive_9_9(self):
     col, row, anchor_idx = get_box_grid_position((1.5, 1.5, 0.1, 0.1), 10, [(1.0, 1.0)])
     self.assertEqual(0, anchor_idx)
-    self.assertEqual(10, col)
-    self.assertEqual(10, row)
+    self.assertEqual(9, col)
+    self.assertEqual(9, row)
 
   def test_anchor_match(self):
     anchors = [(2.0, 2.0), (1.0, 1.0), (1.5, 1.0)]
