@@ -24,7 +24,7 @@ def conv2d(x, name, stride, with_batch_norm = False):
 def depthwise_separable_conv2d(x, name, stride, with_batch_norm = False):
   with tf.variable_scope(name):
     out = tf.nn.separable_conv2d(x, tf.get_variable('depthwise_filter'), tf.get_variable('pointwise_filter'), stride, 'SAME')
-    out = batch_norm(out, weights['batch_norm']) if with_batch_norm else tf.add(out, tf.get_variable('bias'))
+    out = batch_norm(out, 'batch_norm') if with_batch_norm else tf.add(out, tf.get_variable('bias'))
     return out
 
 def fully_connected(x, name):
