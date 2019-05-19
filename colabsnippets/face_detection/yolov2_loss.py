@@ -53,11 +53,9 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_activate_coordinates
       gt_w = (w * num_cells) / aw
       gt_h = (h * num_cells) / ah
 
-      print(gt_x, gt_y)
       if is_activate_coordinates:
         gt_x, gt_y = inverse_sigmoid(gt_x), inverse_sigmoid(gt_y)
         gt_w, gt_h = math.log(gt_w), math.log(gt_h)
-      print(gt_x, gt_y)
 
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
