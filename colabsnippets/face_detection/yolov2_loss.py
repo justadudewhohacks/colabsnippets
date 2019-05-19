@@ -2,6 +2,7 @@ import math
 import numpy as np
 import tensorflow as tf
 from .calculate_iou import calculate_iou
+from .inverse_sigmoid import inverse_sigmoid
 
 def in_grid_range(val, num_cells):
   return min(num_cells - 1, max(0, val))
@@ -36,7 +37,7 @@ def create_gt_mask(batch_gt_boxes, num_cells, anchors):
 
   return mask
 
-def create_gt_coords(batch_gt_boxes, num_cells, anchors):
+def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_activate_coordinates = True):
   batch_size = len(batch_gt_boxes)
   gt_coords = np.zeros([batch_size, num_cells, num_cells, len(anchors), 4])
   for batch_idx in range(0, batch_size):
@@ -44,11 +45,20 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors):
       col, row, anchor_idx = get_box_grid_position(gt_box, num_cells, anchors)
 
       x, y, w, h = gt_box
+      ct_x = x + (w / 2)
+      ct_y = y + (h / 2)
       aw, ah = anchors[anchor_idx]
-      gt_x = in_grid_range((x * num_cells), num_cells) - col
-      gt_y = in_grid_range((y * num_cells), num_cells) - row
-      gt_w = math.log((w * num_cells) / aw)
-      gt_h = math.log((h * num_cells) / ah)
+      gt_x = (ct_x * num_cells) - col
+      gt_y = (ct_y * num_cells) - row
+      gt_w = (w * num_cells) / aw
+      gt_h = (h * num_cells) / ah
+
+      print(gt_x, gt_y)
+      if is_activate_coordinates:
+        gt_x, gt_y = inverse_sigmoid(gt_x), inverse_sigmoid(gt_y)
+        gt_w, gt_h = math.log(gt_w), math.log(gt_h)
+      print(gt_x, gt_y)
+
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
   return gt_coords
