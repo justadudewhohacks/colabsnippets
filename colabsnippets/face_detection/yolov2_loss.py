@@ -37,7 +37,7 @@ def create_gt_mask(batch_gt_boxes, num_cells, anchors):
 
   return mask
 
-def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_activate_coordinates = True):
+def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoid = False, is_activate_coordinates = True):
   batch_size = len(batch_gt_boxes)
   gt_coords = np.zeros([batch_size, num_cells, num_cells, len(anchors), 4])
   for batch_idx in range(0, batch_size):
@@ -54,7 +54,8 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_activate_coordinates
       gt_h = (h * num_cells) / ah
 
       if is_activate_coordinates:
-        gt_x, gt_y = inverse_sigmoid(gt_x), inverse_sigmoid(gt_y)
+        if is_apply_inverse_sigmoid:
+          gt_x, gt_y = inverse_sigmoid(gt_x), inverse_sigmoid(gt_y)
         gt_w, gt_h = math.log(gt_w), math.log(gt_h)
 
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
