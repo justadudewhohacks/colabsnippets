@@ -96,6 +96,8 @@ def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, 
             out_boxes.append(reconstruct_box(box, col, row, anchors[anchor_idx], num_cells, is_apply_sigmoid = is_apply_sigmoid))
     batch_out_boxes.append(out_boxes)
 
+    return batch_out_boxes
+
 def compile_loss_op(pred, gt_coords, mask, coord_scale = 1.0, object_scale = 5.0, no_object_scale = 1.0):
   grid_pred_coords, grid_pred_scores = extract_coords_and_scores(pred)
   # TODO: ious
