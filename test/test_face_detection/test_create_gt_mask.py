@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from colabsnippets.face_detection import (
+from colabsnippets.face_detection.yolov2 import (
   create_gt_mask
 )
 

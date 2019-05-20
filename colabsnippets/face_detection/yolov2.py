@@ -2,7 +2,7 @@ import math
 import numpy as np
 import tensorflow as tf
 from .calculate_iou import calculate_iou
-from .inverse_sigmoid import inverse_sigmoid
+from .sigmoid import inverse_sigmoid, sigmoid
 
 def in_grid_range(val, num_cells):
   return min(num_cells - 1, max(0, val))
@@ -55,14 +55,14 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoi
 
       if is_activate_coordinates:
         if is_apply_inverse_sigmoid:
-          gt_x, gt_y = inverse_sigmoid(gt_x), inverse_sigmoid(gt_y)
+          gt_x, gt_y = inverse_sigmoid(max(gt_x, 0.001)), inverse_sigmoid(max(gt_y, 0.001))
         gt_w, gt_h = math.log(gt_w), math.log(gt_h)
 
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
   return gt_coords
 
-def extract_centers_scales_and_scores(pred):
+def extract_coords_and_scores(pred):
   num_anchors = pred.shape.as_list()[3] / 5
   get_shape = lambda size: np.concatenate((pred.shape.as_list()[0:3], [num_anchors, size]), axis = None)
   grid_preds = tf.reshape(pred, get_shape(5))
@@ -70,8 +70,34 @@ def extract_centers_scales_and_scores(pred):
   grid_pred_scores = tf.slice(grid_preds, [0, 0, 0, 0, 4], get_shape(1))
   return grid_pred_coords, grid_pred_scores
 
+def reconstruct_box(pred_box, col, row, anchor, num_cells, is_apply_sigmoid = False):
+  aw, ah = anchor
+  x, y, w, h = pred_box
+  w = (math.exp(w) * aw) / num_cells
+  h = (math.exp(h) * ah) / num_cells
+  if is_apply_sigmoid:
+    x, y = sigmoid(x), sigmoid(y)
+  x = ((col + x) / num_cells) - (w / 2)
+  y = ((row + y) / num_cells) - (h / 2)
+  return x, y, w, h
+
+def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, is_apply_sigmoid = False):
+  batch_size, num_cells = grid_pred_scores.shape[0:2]
+
+  batch_out_boxes = []
+  for batch_idx in range(0, batch_size):
+    out_boxes = []
+    for col in range(0, num_cells):
+      for row in range(0, num_cells):
+        for anchor_idx in range(0, len(anchors)):
+          score = grid_pred_scores[batch_idx, row, col, anchor_idx]
+          if score >= min_score:
+            box = grid_pred_coords[batch_idx, row, col, anchor_idx]
+            out_boxes.append(reconstruct_box(box, col, row, anchors[anchor_idx], num_cells, is_apply_sigmoid = is_apply_sigmoid))
+    batch_out_boxes.append(out_boxes)
+
 def compile_loss_op(pred, gt_coords, mask, coord_scale = 1.0, object_scale = 5.0, no_object_scale = 1.0):
-  grid_pred_coords, grid_pred_scores = extract_centers_scales_and_scores(pred)
+  grid_pred_coords, grid_pred_scores = extract_coords_and_scores(pred)
   # TODO: ious
   ious = 1
   object_loss = object_scale * tf.reduce_sum(mask * (ious - tf.nn.sigmoid(grid_pred_scores))**2)

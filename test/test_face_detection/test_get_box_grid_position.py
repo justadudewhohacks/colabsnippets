@@ -1,6 +1,6 @@
 import unittest
 
-from colabsnippets.face_detection import (
+from colabsnippets.face_detection.yolov2 import (
   get_box_grid_position
 )
 

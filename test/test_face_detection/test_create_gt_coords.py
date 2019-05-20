@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 import math
 
-from colabsnippets.face_detection import (
+from colabsnippets.face_detection.yolov2 import (
   create_gt_coords,
   inverse_sigmoid
 )
