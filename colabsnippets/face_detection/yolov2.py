@@ -90,9 +90,9 @@ def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, 
     for col in range(0, num_cells):
       for row in range(0, num_cells):
         for anchor_idx in range(0, len(anchors)):
-          score = grid_pred_scores[batch_idx, row, col, anchor_idx]
+          score = grid_pred_scores[batch_idx, col, row, anchor_idx]
           if score >= min_score:
-            box = grid_pred_coords[batch_idx, row, col, anchor_idx]
+            box = grid_pred_coords[batch_idx, col, row, anchor_idx]
             out_boxes.append(reconstruct_box(box, col, row, anchors[anchor_idx], num_cells, is_apply_sigmoid = is_apply_sigmoid))
     batch_out_boxes.append(out_boxes)
 
