@@ -55,20 +55,12 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoi
 
       if is_activate_coordinates:
         if is_apply_inverse_sigmoid:
-          gt_x, gt_y = inverse_sigmoid(max(gt_x, 0.001)), inverse_sigmoid(max(gt_y, 0.001))
+          gt_x, gt_y = inverse_sigmoid(min(max(gt_x, 0.001), 0.999)), inverse_sigmoid(min(max(gt_y, 0.001), 0.999))
         gt_w, gt_h = math.log(gt_w), math.log(gt_h)
 
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
   return gt_coords
-
-def extract_coords_and_scores(pred):
-  num_anchors = pred.shape.as_list()[3] / 5
-  get_shape = lambda size: np.concatenate((pred.shape.as_list()[0:3], [num_anchors, size]), axis = None)
-  grid_preds = tf.reshape(pred, get_shape(5))
-  grid_pred_coords = tf.slice(grid_preds, [0, 0, 0, 0, 0], get_shape(4))
-  grid_pred_scores = tf.slice(grid_preds, [0, 0, 0, 0, 4], get_shape(1))
-  return grid_pred_coords, grid_pred_scores
 
 def reconstruct_box(pred_box, col, row, anchor, num_cells, is_apply_sigmoid = False):
   aw, ah = anchor
@@ -98,8 +90,14 @@ def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, 
 
   return batch_out_boxes
 
-def compile_loss_op(pred, gt_coords, mask, coord_scale = 1.0, object_scale = 5.0, no_object_scale = 1.0):
-  grid_pred_coords, grid_pred_scores = extract_coords_and_scores(pred)
+def extract_coords_and_scores(pred, batch_size, num_cells, num_anchors):
+  grid_preds = tf.reshape(pred, [batch_size, num_cells, num_cells, num_anchors, 5])
+  grid_pred_coords = tf.slice(grid_preds, [0, 0, 0, 0, 0], [batch_size, num_cells, num_cells, num_anchors, 4])
+  grid_pred_scores = tf.slice(grid_preds, [0, 0, 0, 0, 4], [batch_size, num_cells, num_cells, num_anchors, 1])
+  return grid_pred_coords, grid_pred_scores
+
+def compile_loss_op(pred, gt_coords, mask, batch_size, num_cells, num_anchors, coord_scale = 1.0, object_scale = 5.0, no_object_scale = 1.0):
+  grid_pred_coords, grid_pred_scores = extract_coords_and_scores(pred, batch_size, num_cells, num_anchors)
   # TODO: ious
   ious = 1
   object_loss = object_scale * tf.reduce_sum(mask * (ious - tf.nn.sigmoid(grid_pred_scores))**2)

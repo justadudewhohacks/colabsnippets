@@ -57,7 +57,7 @@ class BatchLoader:
 
   def next_batch(self, batch_size, image_size = 112):
     if batch_size < 1:
-      raise Exception('DataLoader.next_batch - invalid batch_size: ' + str(batch_size))
+      raise Exception('BatchLoader.next_batch - invalid batch_size: ' + str(batch_size))
 
 
     from_idx = self.current_idx

@@ -33,8 +33,8 @@ class DataDownloader():
       print("downloading data for db: {}".format(db))
       mk_dir_if_not_exists("{}/{}".format(self.data_dir, db))
 
-      for shard in dbs_dict[db]:
-        print("downloading data for shard {}".format(shard['shard_id'] if 'shard_id' in shard else '0'))
+      for idx, shard in enumerate(dbs_dict[db]):
+        print("downloading data for shard {}".format(idx))
         self.download_shard_data(db, shard, ['images'] + additional_data_keys)
 
     print("download_data - total time: {}s".format(time.time() - ts))
