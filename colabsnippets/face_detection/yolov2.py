@@ -37,7 +37,7 @@ def create_gt_mask(batch_gt_boxes, num_cells, anchors):
 
   return mask
 
-def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoid = False, is_activate_coordinates = True):
+def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoid = True, is_activate_coordinates = True):
   batch_size = len(batch_gt_boxes)
   gt_coords = np.zeros([batch_size, num_cells, num_cells, len(anchors), 4])
   for batch_idx in range(0, batch_size):
@@ -55,14 +55,19 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoi
 
       if is_activate_coordinates:
         if is_apply_inverse_sigmoid:
-          gt_x, gt_y = inverse_sigmoid(min(max(gt_x, 0.001), 0.999)), inverse_sigmoid(min(max(gt_y, 0.001), 0.999))
+          try:
+            gt_x, gt_y = inverse_sigmoid(min(max(gt_x, 0.001), 0.999)), inverse_sigmoid(min(max(gt_y, 0.001), 0.999))
+          except e:
+            print(gt_x, gt_y)
+            print(gt_box)
+            raise e
         gt_w, gt_h = math.log(gt_w), math.log(gt_h)
 
       gt_coords[batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y, gt_w, gt_h]
 
   return gt_coords
 
-def reconstruct_box(pred_box, col, row, anchor, num_cells, is_apply_sigmoid = False):
+def reconstruct_box(pred_box, col, row, anchor, num_cells, is_apply_sigmoid = True):
   aw, ah = anchor
   x, y, w, h = pred_box
   w = (math.exp(w) * aw) / num_cells
@@ -73,7 +78,7 @@ def reconstruct_box(pred_box, col, row, anchor, num_cells, is_apply_sigmoid = Fa
   y = ((row + y) / num_cells) - (h / 2)
   return x, y, w, h
 
-def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, is_apply_sigmoid = False):
+def extract_boxes(grid_pred_coords, grid_pred_scores, anchors, min_score = 0.5, is_apply_sigmoid = True):
   batch_size, num_cells = grid_pred_scores.shape[0:2]
 
   batch_out_boxes = []
@@ -105,3 +110,20 @@ def compile_loss_op(pred, gt_coords, mask, batch_size, num_cells, num_anchors, c
   no_object_loss = no_object_scale * tf.reduce_sum((1 - mask) * tf.nn.sigmoid(grid_pred_scores)**2)
   total_loss = object_loss + coord_loss + no_object_loss
   return total_loss, object_loss, coord_loss, no_object_loss
+
+def get_num_cells_by_image_size(image_size, cell_size = 32):
+  return int(image_size / cell_size)
+
+def compile_ops_for_image_sizes(compile_pred_op, batch_size, image_size, num_anchors, learning_rate, min_image_size = 128, max_image_size = 608, step = 32):
+  X = tf.placeholder(tf.float32, [batch_size, None, None, 3])
+  pred_op = compile_pred_op(X)
+  GT_MASK = tf.placeholder(tf.float32, [batch_size, None, None, num_anchors, 1])
+  GT_COORDS = tf.placeholder(tf.float32, [batch_size, None, None, num_anchors, 4])
+  ops_by_image_size = {}
+  for image_size in range(min_image_size, max_image_size, step):
+    num_cells = get_num_cells_by_image_size(image_size)
+    extract_op = extract_coords_and_scores(pred_op, batch_size, num_cells, num_anchors)
+    loss_op = compile_loss_op(pred_op, GT_COORDS, GT_MASK, batch_size, num_cells, num_anchors)
+    train_op = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(loss_op[0])
+    ops_by_image_size[image_size] = (extract_op, loss_op, train_op)
+  return X, GT_MASK, GT_COORDS, pred_op, ops_by_image_size
