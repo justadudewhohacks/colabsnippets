@@ -114,16 +114,16 @@ def compile_loss_op(pred, gt_coords, mask, batch_size, num_cells, num_anchors, c
 def get_num_cells_by_image_size(image_size, cell_size = 32):
   return int(image_size / cell_size)
 
-def compile_ops_for_image_sizes(compile_pred_op, batch_size, image_size, num_anchors, learning_rate, min_image_size = 128, max_image_size = 608, step = 32):
+def compile_ops_for_image_sizes(compile_pred_op, create_optimizer, batch_size, num_anchors, min_image_size = 128, max_image_size = 608, step = 32):
   X = tf.placeholder(tf.float32, [batch_size, None, None, 3])
   pred_op = compile_pred_op(X)
   GT_MASK = tf.placeholder(tf.float32, [batch_size, None, None, num_anchors, 1])
   GT_COORDS = tf.placeholder(tf.float32, [batch_size, None, None, num_anchors, 4])
   ops_by_image_size = {}
-  for image_size in range(min_image_size, max_image_size, step):
+  for image_size in range(min_image_size, max_image_size + 1, step):
     num_cells = get_num_cells_by_image_size(image_size)
     extract_op = extract_coords_and_scores(pred_op, batch_size, num_cells, num_anchors)
     loss_op = compile_loss_op(pred_op, GT_COORDS, GT_MASK, batch_size, num_cells, num_anchors)
-    train_op = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(loss_op[0])
+    train_op = create_optimizer().minimize(loss_op[0])
     ops_by_image_size[image_size] = (extract_op, loss_op, train_op)
   return X, GT_MASK, GT_COORDS, pred_op, ops_by_image_size
