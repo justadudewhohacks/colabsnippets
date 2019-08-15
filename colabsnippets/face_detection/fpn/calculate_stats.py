@@ -3,11 +3,13 @@ import numpy as np
 from ..calculate_iou import calculate_iou
 
 def calculate_stats(inputs, score_thresh = 0.5, iou_threshs = [0.5]):
+  batch_size = len(inputs["batch_pred_boxes"])
+  num_stages = len(inputs["batch_scores_by_stage"])
+
   gt_pos_by_stage = [np.where(inputs["gt_masks_by_stage"][s] != 0) for s in range(0, num_stages)]
   num_gt_anchors = np.sum([gt_pos_by_stage[s][0].shape[0] for s in range(0, num_stages)])
   num_tps_score = np.sum([np.where(inputs["batch_scores_by_stage"][s][gt_pos_by_stage[s]] > score_thresh)[0].shape[0] for s in range(0, num_stages)])
 
-  batch_size = len(inputs["batch_pred_boxes"])
 
   num_gt_boxes = 0
   num_preds = 0
