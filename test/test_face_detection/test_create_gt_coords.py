@@ -18,7 +18,7 @@ class Test_create_gt_coords(unittest.TestCase):
       (0.43, 0.52, 0.09, 0.12)
     ]
 
-    gt_coords = create_gt_coords([boxes], 10, anchors)
+    gt_coords = create_gt_coords([boxes], 10, anchors, is_apply_inverse_sigmoid=False)
     expected_shape = [1, 10, 10, 1, 4]
     expected_gt_coords = np.zeros(expected_shape)
     expected_gt_coords[0, 0, 0, 0, :] = [0.5, 0.5, math.log(1), math.log(1)]
