@@ -101,6 +101,7 @@ class FPNBase(NeuralNetwork):
 
   def get_positive_anchors(self, box, image_size, iou_threshold = 0.5):
 
+    # TODO: what if box centers are out of grid?
     in_grid_range = lambda val, num_cells: min(num_cells - 1, max(0, val))
 
     x, y, w, h = box
@@ -139,15 +140,17 @@ class FPNBase(NeuralNetwork):
 
     return [gt_x, gt_y, gt_w, gt_h]
 
-  def create_gt_masks(self, batch_gt_boxes, image_size):
+  def create_gt_masks(self, batch_gt_boxes, image_size, is_return_grid_cell_masks = False):
     batch_size = len(batch_gt_boxes)
 
-    masks_by_stage = []
+    anchor_masks_by_stage = []
+    grid_cell_masks_by_stage = []
     offsets_by_stage = []
     scales_by_stage = []
     for stage_idx in range(0, self.get_num_stages()):
       stage_num_cells = self.get_num_cells_for_stage(image_size, stage_idx)
-      masks_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+      anchor_masks_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+      grid_cell_masks_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, 1]))
       offsets_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
       scales_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
 
@@ -163,12 +166,16 @@ class FPNBase(NeuralNetwork):
 
         for positive_anchor in positive_anchors:
           stage_idx, col, row, anchor_idx = positive_anchor
-          masks_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = 1
+          anchor_masks_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = 1
+          grid_cell_masks_by_stage[stage_idx][batch_idx, col, row, :] = 1
           gt_x, gt_y, gt_w, gt_h = self.to_gt_coords(gt_box, positive_anchor, image_size)
           offsets_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y]
           scales_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_w, gt_h]
 
-    return masks_by_stage, offsets_by_stage, scales_by_stage
+    masks = [anchor_masks_by_stage, offsets_by_stage, scales_by_stage]
+    if is_return_grid_cell_masks:
+      masks += grid_cell_masks_by_stage
+    return masks
 
   def coords_and_scores(self, x, stage_num_cells, batch_size):
     out = tf.reshape(x, [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 5])
