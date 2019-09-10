@@ -3,8 +3,8 @@ import tensorflow as tf
 import numpy as np
 
 from ... import NeuralNetwork
-from ...ops import normalize, conv2d, depthwise_separable_conv2d
 from ..calculate_iou import calculate_iou
+from ..focal_loss import focal_loss
 from .generate_anchors import generate_anchors
 
 class FPNBase(NeuralNetwork):
@@ -14,6 +14,9 @@ class FPNBase(NeuralNetwork):
     super().__init__(self.initialize_weights, name = name)
 
   def initialize_weights(self, weight_processor):
+    pass
+
+  def forward(self, x, batch_size, image_size, out_num_cells = None):
     pass
 
   def get_num_anchors_per_stage(self):
@@ -177,9 +180,120 @@ class FPNBase(NeuralNetwork):
       masks += grid_cell_masks_by_stage
     return masks
 
+  def create_gt_masks_v2(self, batch_gt_boxes, image_size):
+    batch_size = len(batch_gt_boxes)
+
+    anchor_masks_by_stage = []
+    grid_cell_masks_by_stage = []
+    offsets_by_stage = []
+    scales_by_stage = []
+    for stage_idx in range(0, self.get_num_stages()):
+      stage_num_cells = self.get_num_cells_for_stage(image_size, stage_idx)
+      anchor_masks_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+      grid_cell_masks_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+      offsets_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
+      scales_by_stage.append(np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
+
+    for batch_idx in range(0, batch_size):
+      for gt_box in batch_gt_boxes[batch_idx]:
+        positive_anchors = self.get_positive_anchors(gt_box, image_size)
+
+        #if len(positive_anchors) == 0:
+          #print('warning, no positive_anchors for box: ' + str(gt_box))
+
+        #if len(positive_anchors) > 1:
+          #print('warning, ' + str(len(positive_anchors)) + ' positive_anchors for box: ' + str(gt_box))
+
+        for positive_anchor in positive_anchors:
+          stage_idx, col, row, anchor_idx = positive_anchor
+          anchor_masks_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = 1
+          grid_cell_masks_by_stage[stage_idx][batch_idx, col, row, :, :] = 1
+          gt_x, gt_y, gt_w, gt_h = self.to_gt_coords(gt_box, positive_anchor, image_size)
+          offsets_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y]
+          scales_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_w, gt_h]
+
+    masks = {
+      "anchor_masks_by_stage": anchor_masks_by_stage,
+      "grid_cell_masks_by_stage": grid_cell_masks_by_stage,
+      "offsets_by_stage": offsets_by_stage,
+      "scales_by_stage": scales_by_stage,
+    }
+    return masks
+
   def coords_and_scores(self, x, stage_num_cells, batch_size):
     out = tf.reshape(x, [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 5])
     offsets = tf.slice(out, [0, 0, 0, 0, 0], [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2])
     scales = tf.slice(out, [0, 0, 0, 0, 2], [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2])
     scores = tf.slice(out, [0, 0, 0, 0, 4], [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1])
     return tf.sigmoid(offsets), scales, scores
+
+  def forward_factory(self, sess, batch_size, image_size, out_num_cells = 20, with_train_ops = False,
+                      object_scale = 1.0, coord_scale = 1.0, no_object_scale = 0.25, learning_rate = None):
+    X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
+
+    stages_ops = self.forward(X, batch_size, image_size, out_num_cells = out_num_cells)
+    offsets_ops_by_stage = [ops[0] for ops in stages_ops]
+    scales_ops_by_stage = [ops[1] for ops in stages_ops]
+    scores_ops_by_stage = [tf.nn.sigmoid(ops[2]) for ops in stages_ops]
+
+    def forward(batch_x, score_thresh = 0.5):
+      feed_dict = { X: batch_x }
+      batch_offsets_by_stage, batch_scales_by_stage , batch_scores_by_stage, = sess.run([offsets_ops_by_stage, scales_ops_by_stage, scores_ops_by_stage], feed_dict = feed_dict)
+      return self.extract_boxes(batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, score_thresh, image_size, relative_coords = True)
+
+    if with_train_ops:
+      num_stages = self.get_num_stages()
+      num_anchors_per_stage = self.get_num_anchors_per_stage()
+      num_cells_by_stage = [self.get_num_cells_for_stage(image_size, s) for s in range(0, num_stages)]
+      MASKS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 1]) for nc in num_cells_by_stage]
+      OFFSETS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 2]) for nc in num_cells_by_stage]
+      SCALES_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 2]) for nc in num_cells_by_stage]
+
+      object_loss_ops_by_stage = [tf.reduce_sum(MASKS_BY_STAGE[s] * focal_loss(scores_ops_by_stage[s], True)) for s in range(0, num_stages)]
+      no_object_loss_ops_by_stage = [tf.reduce_sum((1 - MASKS_BY_STAGE[s]) * focal_loss(scores_ops_by_stage[s], False)) for s in range(0, num_stages)]
+
+      offset_loss_ops_by_stage = [tf.reduce_sum((offsets_ops_by_stage[s] - OFFSETS_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
+      scales_loss_ops_by_stage = [tf.reduce_sum((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
+
+      object_loss_op = tf.add_n(object_loss_ops_by_stage)
+      no_object_loss_op = tf.add_n(no_object_loss_ops_by_stage)
+      offsets_loss_op = tf.add_n(offset_loss_ops_by_stage)
+      scales_loss_op = tf.add_n(scales_loss_ops_by_stage)
+
+      object_loss_op = object_scale * object_loss_op
+      no_object_loss_op = no_object_scale * no_object_loss_op
+      offsets_loss_op = coord_scale * offsets_loss_op
+      scales_loss_op = coord_scale * scales_loss_op
+
+      loss_op = (object_loss_op + no_object_loss_op + offsets_loss_op + scales_loss_op) / batch_size
+      train_op = tf.train.AdamOptimizer(learning_rate = learning_rate, name = 'Adam_' + str(image_size)).minimize(loss_op)
+
+      def forward_train(batch_x, batch_gt_boxes, score_thresh = 0.5):
+        gt_masks_by_stage, gt_offsets_by_stage, gt_scales_by_stage = self.create_gt_masks(batch_gt_boxes, image_size)
+
+        feed_dict = { X: batch_x }
+        for s in range(0, num_stages):
+          feed_dict[MASKS_BY_STAGE[s]] = gt_masks_by_stage[s]
+          feed_dict[OFFSETS_BY_STAGE[s]] = gt_offsets_by_stage[s]
+          feed_dict[SCALES_BY_STAGE[s]] = gt_scales_by_stage[s]
+
+        loss, _, object_loss, no_object_loss, offsets_loss, scales_loss, batch_scores_by_stage, batch_offsets_by_stage, batch_scales_by_stage = sess.run([
+            loss_op, train_op, object_loss_op, no_object_loss_op, offsets_loss_op, scales_loss_op,
+            scores_ops_by_stage, offsets_ops_by_stage, scales_ops_by_stage
+        ], feed_dict = feed_dict)
+
+        batch_pred_boxes = self.extract_boxes(batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, score_thresh, image_size, relative_coords = True)
+
+        ret = {
+            "loss": loss,
+            "object_loss": object_loss,
+            "no_object_loss": no_object_loss,
+            "offsets_loss": offsets_loss,
+            "scales_loss": scales_loss,
+            "gt_masks_by_stage": gt_masks_by_stage,
+            "batch_scores_by_stage": batch_scores_by_stage,
+            "batch_pred_boxes": batch_pred_boxes
+        }
+        return ret
+      return forward_train
+    return forward
