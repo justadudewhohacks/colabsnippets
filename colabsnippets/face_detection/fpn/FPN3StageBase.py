@@ -47,11 +47,11 @@ class FPN3StageBase(FPNBase):
 
       if self.with_detection_module:
         with tf.variable_scope('det_1'):
-          self.init_context_module_weights(weight_processor)
+          self.init_detection_module_weights(weight_processor)
         with tf.variable_scope('det_2'):
-          self.init_context_module_weights(weight_processor)
+          self.init_detection_module_weights(weight_processor)
         with tf.variable_scope('det_3'):
-          self.init_context_module_weights(weight_processor)
+          self.init_detection_module_weights(weight_processor)
 
       with tf.variable_scope('classifier'):
         weight_processor.process_conv_weights(64, self.get_num_anchors_per_stage() * 5, 'conv_out_0', filter_size = 1)
