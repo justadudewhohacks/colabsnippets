@@ -16,7 +16,7 @@ def shuffle_array(arr):
 def load_json_if_exists(filepath):
   return load_json(filepath) if os.path.exists(filepath) else []
 
-def save_meta_json(self, var_list, filename):
+def save_meta_json(var_list, filename):
   meta_data = []
   for var in var_list:
     meta_data.append({ 'shape': var.get_shape().as_list(), 'name': var.name })
