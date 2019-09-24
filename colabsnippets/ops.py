@@ -63,3 +63,24 @@ def bottleneck(x, name, stride, is_residual = False):
     if is_residual:
       out = tf.add(x, out)
     return tf.nn.relu6(out)
+
+# TODO: is_reduction? rename this block
+def reduction_block(x, name, is_activate_input = True, is_reduction = True):
+  out = x
+  with tf.variable_scope(name):
+    out = tf.nn.relu(out) if is_activate_input else out
+    out = depthwise_separable_conv2d(out, 'separable_conv0', [1, 1, 1, 1])
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv1', [1, 1, 1, 1])
+    out = tf.nn.max_pool(out, [1, 3, 3, 1], [1, 2, 2, 1], 'SAME') if is_reduction else out
+    exp_conv_stride = [1, 2, 2, 1] if is_reduction else [1, 1, 1, 1]
+    out = tf.add(out, conv2d(x, 'expansion_conv', exp_conv_stride))
+    return out
+
+def main_block(x, name):
+  out = x
+  with tf.variable_scope(name):
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv0', [1, 1, 1, 1])
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv1', [1, 1, 1, 1])
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv2', [1, 1, 1, 1])
+    out = tf.add(out, x)
+    return out

@@ -13,6 +13,8 @@ def shuffle_array(arr):
   random.shuffle(arr_clone)
   return arr_clone
 
+def load_json_if_exists(filepath):
+  return load_json(filepath) if os.path.exists(filepath) else []
 
 def save_meta_json(self, var_list, filename):
   meta_data = []

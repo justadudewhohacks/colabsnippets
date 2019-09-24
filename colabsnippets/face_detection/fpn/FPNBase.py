@@ -228,7 +228,7 @@ class FPNBase(NeuralNetwork):
     return tf.sigmoid(offsets), scales, scores
 
   def forward_factory(self, sess, batch_size, image_size, out_num_cells = 20, with_train_ops = False,
-                      object_scale = 1.0, coord_scale = 1.0, no_object_scale = 0.25, learning_rate = None):
+                          object_scale = 1.0, coord_scale = 1.0, no_object_scale = 0.25, learning_rate = None):
     X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
 
     stages_ops = self.forward(X, batch_size, image_size, out_num_cells = out_num_cells)

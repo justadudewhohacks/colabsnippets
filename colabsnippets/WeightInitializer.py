@@ -43,3 +43,15 @@ class WeightInitializer:
       conv_weight_processor(channels_out, channels_out, 'conv1', with_batch_norm = with_batch_norm)
       conv_weight_processor(channels_out, channels_out, 'conv2', with_batch_norm = with_batch_norm)
       conv_weight_processor(channels_out, channels_out, 'conv3', with_batch_norm = with_batch_norm)
+
+  def process_reduction_block_weights(self, channels_in, channels_out, name):
+    with tf.variable_scope(name):
+      self.process_depthwise_separable_conv2d_weights(channels_in, channels_out, 'separable_conv0')
+      self.process_depthwise_separable_conv2d_weights(channels_out, channels_out, 'separable_conv1')
+      self.process_conv_weights(channels_in, channels_out, 'expansion_conv', filter_size = 1)
+
+  def process_main_block_weights(self, channels, name):
+    with tf.variable_scope(name):
+      self.process_depthwise_separable_conv2d_weights(channels, channels, 'separable_conv0')
+      self.process_depthwise_separable_conv2d_weights(channels, channels, 'separable_conv1')
+      self.process_depthwise_separable_conv2d_weights(channels, channels, 'separable_conv2')
