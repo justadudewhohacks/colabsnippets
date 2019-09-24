@@ -46,11 +46,11 @@ class FPN3StageBase(FPNBase):
         weight_processor.process_conv_weights(64, 64, 'conv_anti_aliasing_2', filter_size = 3)
 
       if self.with_detection_module:
-        with tf.init_detection_module_weights('det_1'):
+        with self.init_detection_module_weights('det_1'):
           self.init_context_module_weights(weight_processor)
-        with tf.init_detection_module_weights('det_2'):
+        with self.init_detection_module_weights('det_2'):
           self.init_context_module_weights(weight_processor)
-        with tf.init_detection_module_weights('det_3'):
+        with self.init_detection_module_weights('det_3'):
           self.init_context_module_weights(weight_processor)
 
       with tf.variable_scope('classifier'):
@@ -102,11 +102,11 @@ class FPN3StageBase(FPNBase):
         out1, out2, out3 = self.top_down(out1, out2, out3, image_size)
 
       if self.with_detection_module:
-        with tf.init_detection_module_weights('det_1'):
+        with self.init_detection_module_weights('det_1'):
           out1 = self.detection_module(out1)
-        with tf.init_detection_module_weights('det_2'):
+        with self.init_detection_module_weights('det_2'):
           out2 = self.detection_module(out2)
-        with tf.init_detection_module_weights('det_3'):
+        with self.init_detection_module_weights('det_3'):
           out3 = self.detection_module(out3)
 
       with tf.variable_scope('classifier', reuse = True):
