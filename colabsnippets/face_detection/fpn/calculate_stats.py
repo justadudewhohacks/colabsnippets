@@ -1,7 +1,7 @@
 import numpy as np
 
 from ..calculate_iou import calculate_iou
-from ..object_detector.calculate_stats import calculate_stats as _calculate_stats
+from ..object_detector import calculate_stats as _calculate_stats
 
 def calculate_stats(inputs, score_thresh = 0.5, iou_threshs = [0.5]):
   num_stages = len(inputs["batch_scores_by_stage"])

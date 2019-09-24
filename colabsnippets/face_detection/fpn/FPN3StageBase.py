@@ -13,7 +13,7 @@ class FPN3StageBase(FPNBase):
     stage2_anchors = [create_anchor(i) for i in [8, 16, 24, 32, 64, 96, 128]]
     stage3_anchors = [create_anchor(i) for i in [64, 128, 160, 224, 320, 416, 512]]
     anchors = anchors if anchors is not None else [stage1_anchors, stage2_anchors, stage3_anchors]
-    super().__init__(name = name, anchors = anchors, stage_idx_offset = 1)
+    super().__init__(name = name + '_ctx' if with_detection_module else name, anchors = anchors, stage_idx_offset = 1)
 
   def init_bottom_up_weights(self, weight_processor):
     raise Exception('FPN3StageBase - init_bottom_up_weights not implemented')
