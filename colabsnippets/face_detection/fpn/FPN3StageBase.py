@@ -66,7 +66,7 @@ class FPN3StageBase(FPNBase):
     return out1, out2
 
   def detection_module(self, x):
-    with tf.variable_scope('ctx'):
+    with tf.variable_scope('ctx', reuse = True):
       ctx_out_1, ctx_out_2 = self.context_module(x)
 
     shrink = conv2d(x, 'conv_shrink', [1, 1, 1, 1])
@@ -102,11 +102,11 @@ class FPN3StageBase(FPNBase):
         out1, out2, out3 = self.top_down(out1, out2, out3, image_size)
 
       if self.with_detection_module:
-        with tf.variable_scope('det_1'):
+        with tf.variable_scope('det_1', reuse = True):
           out1 = self.detection_module(out1)
-        with tf.variable_scope('det_2'):
+        with tf.variable_scope('det_2', reuse = True):
           out2 = self.detection_module(out2)
-        with tf.variable_scope('det_3'):
+        with tf.variable_scope('det_3', reuse = True):
           out3 = self.detection_module(out3)
 
       with tf.variable_scope('classifier', reuse = True):
