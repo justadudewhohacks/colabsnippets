@@ -18,9 +18,11 @@ class NeuralNetwork:
 
     self.initialize_weights(WeightInitializer(initialize_weights_factory(weight_initializer), initialize_weights_factory(bias_initializer)))
 
-  def load_weights(self, checkpoint_file, weight_initializer = tf.keras.initializers.glorot_normal(), bias_initializer = tf.keras.initializers.Zeros()):
+  def load_weights(self, checkpoint_file, weight_initializer = tf.keras.initializers.glorot_normal(), bias_initializer = tf.keras.initializers.Zeros(), net_json_file = None):
     checkpoint_data = np.load(checkpoint_file + '.npy')
-    meta_json = load_json(checkpoint_file + '.json')
+    if net_json_file is None:
+      net_json_file = checkpoint_file + '.json'
+    meta_json = load_json(net_json_file)
 
     idx = 0
     data_idx = 0

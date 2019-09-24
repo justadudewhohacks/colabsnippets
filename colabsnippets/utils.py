@@ -13,17 +13,20 @@ def shuffle_array(arr):
   random.shuffle(arr_clone)
   return arr_clone
 
-def save_weights(var_list, checkpoint_file):
-  checkpoint_data = np.array([], dtype = 'float32')
+
+def save_meta_json(self, var_list, filename):
   meta_data = []
   for var in var_list:
     meta_data.append({ 'shape': var.get_shape().as_list(), 'name': var.name })
-    checkpoint_data = np.append(checkpoint_data, var.eval().flatten())
-
-  meta_json = open(checkpoint_file + '.json', 'w')
+  meta_json = open(filename + '.json', 'w')
   meta_json.write(json.dumps(meta_data))
   meta_json.close()
-  np.save(checkpoint_file, checkpoint_data)
+
+def save_weights(var_list, filename):
+  checkpoint_data = np.array([], dtype = 'float32')
+  for var in var_list:
+    checkpoint_data = np.append(checkpoint_data, var.eval().flatten())
+  np.save(filename, checkpoint_data)
 
 # auto recompile ops in case of new batch size
 def forward_factory(compile_forward_op, batch_size, image_size):
