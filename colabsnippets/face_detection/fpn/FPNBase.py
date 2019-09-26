@@ -228,7 +228,10 @@ class FPNBase(NeuralNetwork):
     return tf.sigmoid(offsets), scales, scores
 
   def forward_factory(self, sess, batch_size, image_size, out_num_cells = 20, with_train_ops = False,
-                          object_scale = 1.0, coord_scale = 1.0, no_object_scale = 0.25, learning_rate = None):
+                          object_scale = 1.0, coord_scale = 1.0, no_object_scale = 0.25, learning_rate = None,
+                          offsets_scale = None, scales_scale = None, apply_scale_loss = lambda x: x):
+    offsets_scale = coord_scale if offsets_scale is None else offsets_scale
+    scales_scale = coord_scale if scales_scale is None else scales_scale
     X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
 
     stages_ops = self.forward(X, batch_size, image_size, out_num_cells = out_num_cells)
@@ -253,7 +256,7 @@ class FPNBase(NeuralNetwork):
       no_object_loss_ops_by_stage = [tf.reduce_sum((1 - MASKS_BY_STAGE[s]) * focal_loss(scores_ops_by_stage[s], False)) for s in range(0, num_stages)]
 
       offset_loss_ops_by_stage = [tf.reduce_sum((offsets_ops_by_stage[s] - OFFSETS_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
-      scales_loss_ops_by_stage = [tf.reduce_sum((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
+      scales_loss_ops_by_stage = [apply_scale_loss(tf.reduce_sum((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])) * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
 
       object_loss_op = tf.add_n(object_loss_ops_by_stage)
       no_object_loss_op = tf.add_n(no_object_loss_ops_by_stage)
@@ -262,8 +265,8 @@ class FPNBase(NeuralNetwork):
 
       object_loss_op = object_scale * object_loss_op
       no_object_loss_op = no_object_scale * no_object_loss_op
-      offsets_loss_op = coord_scale * offsets_loss_op
-      scales_loss_op = coord_scale * scales_loss_op
+      offsets_loss_op = offsets_scale * offsets_loss_op
+      scales_loss_op = scales_scale * scales_loss_op
 
       loss_op = (object_loss_op + no_object_loss_op + offsets_loss_op + scales_loss_op) / batch_size
       train_op = tf.train.AdamOptimizer(learning_rate = learning_rate, name = 'Adam_' + str(image_size)).minimize(loss_op)
