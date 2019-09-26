@@ -256,7 +256,7 @@ class FPNBase(NeuralNetwork):
       no_object_loss_ops_by_stage = [tf.reduce_sum((1 - MASKS_BY_STAGE[s]) * focal_loss(scores_ops_by_stage[s], False)) for s in range(0, num_stages)]
 
       offset_loss_ops_by_stage = [tf.reduce_sum((offsets_ops_by_stage[s] - OFFSETS_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
-      scales_loss_ops_by_stage = [apply_scale_loss(tf.reduce_sum((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])) * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
+      scales_loss_ops_by_stage = [tf.reduce_sum(apply_scale_loss((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])) * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
 
       object_loss_op = tf.add_n(object_loss_ops_by_stage)
       no_object_loss_op = tf.add_n(no_object_loss_ops_by_stage)
