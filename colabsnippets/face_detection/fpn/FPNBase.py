@@ -257,10 +257,10 @@ class FPNBase(NeuralNetwork):
       offset_loss_ops_by_stage = [tf.reduce_sum((offsets_ops_by_stage[s] - OFFSETS_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
       scales_loss_ops_by_stage = [tf.reduce_sum(apply_scale_loss((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])) * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
 
-      weighted_object_loss_ops_by_stage = [(object_scale * l) / batch_size for l in range(0, object_loss_ops_by_stage)]
-      weighted_no_object_loss_ops_by_stage = [(no_object_scale * l) / batch_size for l in range(0, no_object_loss_ops_by_stage)]
-      weighted_offset_loss_ops_by_stage = [(offsets_scale * l) / batch_size for l in range(0, offset_loss_ops_by_stage)]
-      weighted_scales_loss_ops_by_stage = [(scales_scale * l) / batch_size for l in range(0, scales_loss_ops_by_stage)]
+      weighted_object_loss_ops_by_stage = [(object_scale * l) / batch_size for l in object_loss_ops_by_stage]
+      weighted_no_object_loss_ops_by_stage = [(no_object_scale * l) / batch_size for l no_object_loss_ops_by_stage]
+      weighted_offset_loss_ops_by_stage = [(offsets_scale * l) / batch_size for l in offset_loss_ops_by_stage)]
+      weighted_scales_loss_ops_by_stage = [(scales_scale * l) / batch_size for l in scales_loss_ops_by_stage]
 
       object_loss_op = tf.add_n(weighted_object_loss_ops_by_stage)
       no_object_loss_op = tf.add_n(weighted_no_object_loss_ops_by_stage)
