@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 
 from ... import NeuralNetwork
+from ...utils import flatten_list
 from ..calculate_iou import calculate_iou
 from ..focal_loss import focal_loss
 from .generate_anchors import generate_anchors
@@ -57,7 +58,10 @@ class FPNBase(NeuralNetwork):
     return batch_anchor_boxes
 
   def extract_boxes(self, offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = False, with_scores = False):
-    batch_boxes = []
+    return flatten_list(flatten_list(self.extract_boxes_by_stage(offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = relative_coords, with_scores = with_scores)))
+
+  def extract_boxes_by_stage(self, offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = False, with_scores = False):
+    batch_boxes_by_stage = [[] for s in self.get_num_stages()]
     for s in range(0, self.get_num_stages()):
       batch_scores = scores_by_stage[s]
       batch_offsets = offsets_by_stage[s]
@@ -66,19 +70,14 @@ class FPNBase(NeuralNetwork):
       stage_anchors = self.anchors[s]
       stage_cell_size = image_size / self.get_num_cells_for_stage(image_size, s)
 
-      if s == 0:
-        for b in range(0, num_batches):
-          batch_boxes.append([])
-
-
       for b in range(0, num_batches):
+        batch_boxes_by_stage[s].append([])
         indices = np.where(batch_scores[b] > score_thresh)
-        # TODO ?
         offsets = batch_offsets[b][indices[0 : len(indices) - 1]]
         scales = batch_scales[b][indices[0 : len(indices) - 1]]
         scores = batch_scores[b][indices]
 
-        num_preds =  indices[0].shape[0]
+        num_preds = indices[0].shape[0]
         for i in range(0, num_preds):
           col = indices[0][i]
           row = indices[1][i]
@@ -99,8 +98,8 @@ class FPNBase(NeuralNetwork):
           if with_scores:
             box = box.tolist() + scores[i]
 
-          batch_boxes[b].append(box)
-    return batch_boxes
+          batch_boxes_by_stage[s][b].append(box)
+    return batch_boxes_by_stage
 
   def get_positive_anchors(self, box, image_size, iou_threshold = 0.5):
 
@@ -258,17 +257,16 @@ class FPNBase(NeuralNetwork):
       offset_loss_ops_by_stage = [tf.reduce_sum((offsets_ops_by_stage[s] - OFFSETS_BY_STAGE[s])**2 * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
       scales_loss_ops_by_stage = [tf.reduce_sum(apply_scale_loss((scales_ops_by_stage[s] - SCALES_BY_STAGE[s])) * MASKS_BY_STAGE[s]) for s in range(0, num_stages)]
 
-      object_loss_op = tf.add_n(object_loss_ops_by_stage)
-      no_object_loss_op = tf.add_n(no_object_loss_ops_by_stage)
-      offsets_loss_op = tf.add_n(offset_loss_ops_by_stage)
-      scales_loss_op = tf.add_n(scales_loss_ops_by_stage)
+      weighted_object_loss_ops_by_stage = [(object_scale * l) / batch_size for l in range(0, object_loss_ops_by_stage)]
+      weighted_no_object_loss_ops_by_stage = [(no_object_scale * l) / batch_size for l in range(0, no_object_loss_ops_by_stage)]
+      weighted_offset_loss_ops_by_stage = [(offsets_scale * l) / batch_size for l in range(0, offset_loss_ops_by_stage)]
+      weighted_scales_loss_ops_by_stage = [(scales_scale * l) / batch_size for l in range(0, scales_loss_ops_by_stage)]
 
-      object_loss_op = object_scale * object_loss_op
-      no_object_loss_op = no_object_scale * no_object_loss_op
-      offsets_loss_op = offsets_scale * offsets_loss_op
-      scales_loss_op = scales_scale * scales_loss_op
-
-      loss_op = (object_loss_op + no_object_loss_op + offsets_loss_op + scales_loss_op) / batch_size
+      object_loss_op = tf.add_n(weighted_object_loss_ops_by_stage)
+      no_object_loss_op = tf.add_n(weighted_no_object_loss_ops_by_stage)
+      offsets_loss_op = tf.add_n(weighted_offset_loss_ops_by_stage)
+      scales_loss_op = tf.add_n(weighted_scales_loss_ops_by_stage)
+      loss_op = object_loss_op + no_object_loss_op + offsets_loss_op + scales_loss_op
       train_op = tf.train.AdamOptimizer(learning_rate = learning_rate, name = 'Adam_' + str(image_size)).minimize(loss_op)
 
       def forward_train(batch_x, batch_gt_boxes, score_thresh = 0.5):
@@ -280,22 +278,25 @@ class FPNBase(NeuralNetwork):
           feed_dict[OFFSETS_BY_STAGE[s]] = gt_offsets_by_stage[s]
           feed_dict[SCALES_BY_STAGE[s]] = gt_scales_by_stage[s]
 
-        loss, _, object_loss, no_object_loss, offsets_loss, scales_loss, batch_scores_by_stage, batch_offsets_by_stage, batch_scales_by_stage = sess.run([
-            loss_op, train_op, object_loss_op, no_object_loss_op, offsets_loss_op, scales_loss_op,
+        sess_ret = sess.run([
+            loss_op, train_op,
+            weighted_object_loss_ops_by_stage, weighted_no_object_loss_ops_by_stage, weighted_offset_loss_ops_by_stage, weighted_scales_loss_ops_by_stage,
             scores_ops_by_stage, offsets_ops_by_stage, scales_ops_by_stage
         ], feed_dict = feed_dict)
 
-        batch_pred_boxes = self.extract_boxes(batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, score_thresh, image_size, relative_coords = True)
+        loss, _, weighted_object_losses_by_stage, weighted_no_object_losses_by_stage, weighted_offset_losses_by_stage, weighted_scales_losses_by_stage, batch_scores_by_stage, batch_offsets_by_stage, batch_scales_by_stage,= sess_ret
+
+        batch_pred_boxes_by_stage = self.extract_boxes_by_stage(batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, score_thresh, image_size, relative_coords = True)
 
         ret = {
             "loss": loss,
-            "object_loss": object_loss,
-            "no_object_loss": no_object_loss,
-            "offsets_loss": offsets_loss,
-            "scales_loss": scales_loss,
+            "weighted_object_losses_by_stage": weighted_object_losses_by_stage,
+            "weighted_no_object_losses_by_stage": weighted_no_object_losses_by_stage,
+            "weighted_offset_losses_by_stage": weighted_offset_losses_by_stage,
+            "weighted_scales_losses_by_stage": weighted_scales_losses_by_stage,
             "gt_masks_by_stage": gt_masks_by_stage,
             "batch_scores_by_stage": batch_scores_by_stage,
-            "batch_pred_boxes": batch_pred_boxes
+            "batch_pred_boxes_by_stage": batch_pred_boxes_by_stage
         }
         return ret
       return forward_train

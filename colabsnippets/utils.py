@@ -47,3 +47,6 @@ def forward_factory(compile_forward_op, batch_size, image_size):
 def mk_dir_if_not_exists(dir_path):
   if not os.path.exists(dir_path):
     os.makedirs(dir_path)
+
+def flatten_list(l):
+  return [item for sublist in l for item in sublist]
