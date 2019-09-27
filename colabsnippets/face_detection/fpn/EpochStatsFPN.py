@@ -30,7 +30,7 @@ class EpochStatsFPN:
       "batch_gt_boxes": batch_gt_boxes,
       "batch_scores_by_stage": preds["batch_scores_by_stage"],
       # TODO
-      "batch_pred_boxes": flatten_list(flatten_list(preds["batch_pred_boxes_by_stage"])),
+      "batch_pred_boxes": flatten_list(preds["batch_pred_boxes_by_stage"]),
       "gt_masks_by_stage": preds["gt_masks_by_stage"]
     }
     # TODO: by stage

@@ -58,7 +58,7 @@ class FPNBase(NeuralNetwork):
     return batch_anchor_boxes
 
   def extract_boxes(self, offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = False, with_scores = False):
-    return flatten_list(flatten_list(self.extract_boxes_by_stage(offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = relative_coords, with_scores = with_scores)))
+    return flatten_list(self.extract_boxes_by_stage(offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = relative_coords, with_scores = with_scores))
 
   def extract_boxes_by_stage(self, offsets_by_stage, scales_by_stage, scores_by_stage, score_thresh, image_size, relative_coords = False, with_scores = False):
     batch_boxes_by_stage = [[] for s in range(0, self.get_num_stages())]
