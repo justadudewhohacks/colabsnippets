@@ -259,7 +259,7 @@ class FPNBase(NeuralNetwork):
 
       weighted_object_loss_ops_by_stage = [(object_scale * l) / batch_size for l in object_loss_ops_by_stage]
       weighted_no_object_loss_ops_by_stage = [(no_object_scale * l) / batch_size for l in no_object_loss_ops_by_stage]
-      weighted_offset_loss_ops_by_stage = [(offsets_scale * l) / batch_size for l in offset_loss_ops_by_stage)]
+      weighted_offset_loss_ops_by_stage = [(offsets_scale * l) / batch_size for l in offset_loss_ops_by_stage]
       weighted_scales_loss_ops_by_stage = [(scales_scale * l) / batch_size for l in scales_loss_ops_by_stage]
 
       object_loss_op = tf.add_n(weighted_object_loss_ops_by_stage)
