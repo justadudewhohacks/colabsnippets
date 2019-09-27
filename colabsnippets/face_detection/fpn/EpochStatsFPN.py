@@ -2,6 +2,7 @@ import time
 import numpy as np
 from ...utils import flatten_list
 from .calculate_stats import calculate_stats
+from .FPNBase import batch_boxes_by_stage_to_boxes_by_batch
 
 class EpochStatsFPN:
   def __init__(self, num_stages = 3):
@@ -30,7 +31,7 @@ class EpochStatsFPN:
       "batch_gt_boxes": batch_gt_boxes,
       "batch_scores_by_stage": preds["batch_scores_by_stage"],
       # TODO
-      "batch_pred_boxes": flatten_list(preds["batch_pred_boxes_by_stage"]),
+      "batch_pred_boxes": batch_boxes_by_stage_to_boxes_by_batch(preds["batch_pred_boxes_by_stage"]),
       "gt_masks_by_stage": preds["gt_masks_by_stage"]
     }
     # TODO: by stage
