@@ -13,7 +13,7 @@ def batch_boxes_by_stage_to_boxes_by_batch(batch_boxes_by_stage):
   out_batch_boxes = [[] for b in range(0, batch_size)]
   for batch_boxes in batch_boxes_by_stage:
     for batch_idx, boxes in enumerate(batch_boxes):
-      for box in boxes.
+      for box in boxes:
         out_batch_boxes[batch_idx].append(box)
   return out_batch_boxes
 
