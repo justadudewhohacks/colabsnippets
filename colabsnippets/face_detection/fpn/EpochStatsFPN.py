@@ -91,6 +91,7 @@ class EpochStatsFPN:
     avg_tps_matches_05 = self.total_matches_05 / iteration_count
     avg_fps_matches_05 = (self.total_num_preds - self.total_matches_05) / iteration_count
 
+    self.total_num_preds = self.total_num_preds if self.total_num_preds > 0 else 1
     match_to_pred_ratio_01 = self.total_matches_01 / self.total_num_preds
     match_to_pred_ratio_03 = self.total_matches_03 / self.total_num_preds
     match_to_pred_ratio_05 = self.total_matches_05 / self.total_num_preds
