@@ -23,6 +23,8 @@ class FPN3StageBase(FPNBase):
 
     if with_detection_module:
       name += '_ctx'
+    if use_minimal_anchors:
+      name += '_v2'
     super().__init__(name=name, anchors=anchors, stage_idx_offset=1)
 
   def init_bottom_up_weights(self, weight_processor):
