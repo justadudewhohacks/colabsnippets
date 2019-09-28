@@ -6,7 +6,7 @@ import types
 import os
 import numpy as np
 
-from ...utils import load_json, load_json_if_exists
+from ...utils import load_json, load_json_if_exists, fix_boxes
 from ...BatchLoader import BatchLoader
 
 '''
@@ -60,18 +60,6 @@ def resolve_image_path(data):
   img_dir = "images-shard{}".format(data['shard']) if 'shard' in data else 'images'
   img_path = "./data/{}/{}/{}".format(db, img_dir, img_file)
   return img_path
-
-def fix_boxes(boxes, image_size, min_box_size_px):
-  out_boxes = []
-  for box in boxes:
-    x, y, w, h = box
-
-    if (image_size*w) <= min_box_size_px or (image_size*h) <= min_box_size_px:
-      continue
-
-    out_boxes.append(box)
-
-  return out_boxes
 
 class DataLoader(BatchLoader):
   def __init__(self, data, image_augmentor = None, start_epoch = None, is_test = False, min_box_size_px = 8, augmentation_prob = 0.0):

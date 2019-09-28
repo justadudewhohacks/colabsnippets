@@ -4,6 +4,8 @@ import os
 import tensorflow as tf
 import numpy as np
 
+from .drive import get_global_drive_instance
+
 def load_json(json_file_path):
   with open(json_file_path) as json_file:
     return json.load(json_file)
@@ -50,3 +52,33 @@ def mk_dir_if_not_exists(dir_path):
 
 def flatten_list(l):
   return [item for sublist in l for item in sublist]
+
+def try_upload_file(filename, drive_upload_folder_id):
+  try:
+    upload = get_global_drive_instance().CreateFile({ "title": filename, "parents": [{"kind": "drive#fileLink", "id": drive_upload_folder_id }] })
+    upload.SetContentFile(filename)
+    upload.Upload()
+  except Exception as e:
+    print ("failed to upload " + filename)
+    print (e)
+
+def gpu_session(callback, device_name = '/gpu:0'):
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  config.allow_soft_placement = True
+  config.log_device_placement = True
+  with tf.Session(config = config) as session:
+    with tf.device(device_name):
+      return callback(session)
+
+def fix_boxes(boxes, image_size, min_box_size_px):
+  out_boxes = []
+  for box in boxes:
+    x, y, w, h = box
+
+    if (image_size*w) <= min_box_size_px or (image_size*h) <= min_box_size_px:
+      continue
+
+    out_boxes.append(box)
+
+  return out_boxes
