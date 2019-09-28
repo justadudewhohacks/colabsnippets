@@ -40,7 +40,11 @@ class TrainFPN():
     face_detection_scrapeddb_data = load_json('./face_detection_scrapeddb_data.json')
     wider_trainData = load_json('./wider_trainData.json')
     train_data = wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
-    self.data_loader = DataLoader(train_data, start_epoch = self.start_epoch, image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib), augmentation_prob = self.augmentation_prob, min_box_size_px = min_box_size_px)
+
+    image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib)
+    self.train_data_loader = DataLoader(train_data, start_epoch = self.start_epoch, image_augmentor = image_augmentor, augmentation_prob = self.augmentation_prob, min_box_size_px = min_box_size_px)
+    self.wider_anchor_epoch_data_loader = DataLoader(wider_trainData, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
+    self.ibug_anchor_epoch_data_loader = DataLoader(ibug_challenge_data, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
 
     print('starting at epoch:', self.start_epoch)
     print('---------------------------')
@@ -52,6 +56,24 @@ class TrainFPN():
     print('train samples:', len(train_data))
     print('image sizes:', self.image_sizes)
     print('---------------------------')
+
+  def get_data_loader(self):
+    current_epoch = self.train_data_loader.epoch
+    is_wider_anchor_epoch = not current_epoch == 0 and (current_epoch + 20) % 20 == 0
+    is_ibug_anchor_epoch = (current_epoch + 10) % 20 == 0
+    is_anchor_epoch = is_wider_anchor_epoch or is_ibug_anchor_epoch
+    if is_anchor_epoch:
+      # anchor epoch data loader will serve next epoch
+      self.train_data_loader.epoch += 1
+      if is_wider_anchor_epoch:
+        print('is_wider_anchor_epoch')
+        self.wider_anchor_epoch_data_loader.epoch = current_epoch
+        return self.wider_anchor_epoch_data_loader
+      if is_ibug_anchor_epoch:
+        print('is_ibug_anchor_epoch')
+        self.ibug_anchor_epoch_data_loader.epoch = current_epoch
+        return self.ibug_anchor_epoch_data_loader
+    return self.train_data_loader
 
   def train(self):
     if (self.start_epoch != 0):
@@ -75,8 +97,8 @@ class TrainFPN():
 
       print('start training')
       epoch_stats = EpochStatsFPN()
+      data_loader = self.get_data_loader()
       # TODO: anchor epochs
-      data_loader = self.data_loader
       while True:
         current_epoch = data_loader.epoch
         image_size = random.choice(self.image_sizes)
@@ -120,5 +142,6 @@ class TrainFPN():
           try_upload_file(checkpoint_name + ".npy", self.drive_upload_checkpoints_folder_id)
 
           epoch_stats = EpochStatsFPN()
+          data_loader = self.get_data_loader()
 
     gpu_session(run)

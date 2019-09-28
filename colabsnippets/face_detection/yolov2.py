@@ -57,7 +57,7 @@ def create_gt_coords(batch_gt_boxes, num_cells, anchors, is_apply_inverse_sigmoi
         if is_apply_inverse_sigmoid:
           try:
             gt_x, gt_y = inverse_sigmoid(min(max(gt_x, 0.001), 0.999)), inverse_sigmoid(min(max(gt_y, 0.001), 0.999))
-          except e:
+          except Exception as e:
             print(gt_x, gt_y)
             print(gt_box)
             raise e

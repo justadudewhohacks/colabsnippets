@@ -1,0 +1,10 @@
+{
+  "python.pythonPath": "C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python36\\python.exe",
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": true,
+  "python.linting.pylintArgs": [
+    //"--extension-pkg-whitelist=tensorflow,cv2",
+    "--init-hook='import sys; sys.path.append(\"C:\\Users\\user\\AppData\\Local\\Programs\\Python\\Python36\\Lib\\site-packages\")'",
+    "--errors-only"
+  ]
+}
