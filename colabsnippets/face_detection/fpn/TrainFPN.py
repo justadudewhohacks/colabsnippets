@@ -98,8 +98,14 @@ class TrainFPN():
       print('start training')
       epoch_stats = EpochStatsFPN()
       data_loader = self.get_data_loader()
+      last_progress = 0
       # TODO: anchor epochs
       while True:
+        progress = int((data_loader.current_idx / data_loader.get_end_idx()) * 10)
+        if not last_progress == progress:
+          last_progress = progress
+          print(str(progress * 10) + '%')
+
         current_epoch = data_loader.epoch
         image_size = random.choice(self.image_sizes)
         forward_train = forward_train_ops_by_image_size[image_size]
@@ -123,7 +129,7 @@ class TrainFPN():
               + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
 
         if current_epoch != data_loader.epoch:
-          print('next epoch: ' + str(data_loader.epoch))
+          print('epoch done: ' + str(current_epoch))
           checkpoint_name = "{}_epoch{}".format(self.model_name, current_epoch)
           save_weights(get_net_vars(self.net.name), checkpoint_name)
 
@@ -143,5 +149,7 @@ class TrainFPN():
 
           epoch_stats = EpochStatsFPN()
           data_loader = self.get_data_loader()
+          print()
+          print('next epoch: ' + str(data_loader.epoch))
 
     gpu_session(run)
