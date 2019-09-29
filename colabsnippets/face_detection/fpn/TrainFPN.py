@@ -3,7 +3,7 @@ import time
 import tensorflow as tf
 import numpy as np
 
-from ...utils import load_json, try_upload_file, save_weights, gpu_session, fix_boxes
+from ...utils import load_json, try_upload_file, save_weights, save_meta_json, gpu_session
 from ..AlbumentationsAugmentor import AlbumentationsAugmentor
 from .DataLoader import DataLoader
 from .EpochStatsFPN import EpochStatsFPN
@@ -76,11 +76,12 @@ class TrainFPN():
     return self.train_data_loader
 
   def train(self):
-    if (self.start_epoch != 0):
-      self.net.load_weights("{}_epoch{}".format(self.model_name, self.start_epoch - 1), net_json_file = self.net.name + '.json')
+    if self.start_epoch != 0:
+      self.net.load_weights("{}_epoch{}".format(self.model_name, self.start_epoch - 1), net_json_file=self.net.name + '.json')
       print('done loading weights')
     else:
       self.net.init_trainable_weights()
+      save_meta_json(tf.global_variables(self.net.name), filename=self.net.name)
 
     log_file = open('./log.txt', 'w')
     def run(sess):
@@ -99,7 +100,7 @@ class TrainFPN():
       epoch_stats = EpochStatsFPN()
       data_loader = self.get_data_loader()
       last_progress = 0
-      # TODO: anchor epochs
+
       while True:
         progress = int((data_loader.current_idx / data_loader.get_end_idx()) * 10)
         if not last_progress == progress:
