@@ -61,6 +61,9 @@ class EpochStatsFPN:
     iteration_count = np.sum(self.num_gt_anchors_by_stage)
     total_tps_score = np.sum(self.num_tps_score_by_stage)
 
+    # TODO: gt anchors by anchor
+    # tps/fps by anchor
+
     avg_loss = self.total_loss / iteration_count
     avg_object_losses_by_stage = self.total_object_losses_by_stage / self.num_gt_anchors_by_stage
     avg_no_object_losses_by_stage = self.total_no_object_losses_by_stage / self.num_gt_anchors_by_stage
