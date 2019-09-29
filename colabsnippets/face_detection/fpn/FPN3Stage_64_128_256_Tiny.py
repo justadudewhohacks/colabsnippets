@@ -7,7 +7,7 @@ from ...ops import conv2d, depthwise_separable_conv2d, reduction_block, main_blo
 class FPN3Stage_64_128_256_Tiny(FPN3StageBase):
   def __init__(self, name='fpn3stage_64_128_256_tiny', with_batch_norm=True):
     super().__init__(name=name, stage_filters=[64, 128, 256],
-                     with_detection_module=True, use_minimal_anchors=True)
+                     with_detection_module=True, use_minimal_anchors=True, net_suffix="")
     self.with_batch_norm = with_batch_norm
 
   def init_bottom_up_weights(self, weight_processor):
@@ -24,7 +24,7 @@ class FPN3Stage_64_128_256_Tiny(FPN3StageBase):
     weight_processor.process_main_block_weights(256, 'main_block_3_0', with_batch_norm=self.with_batch_norm)
 
   def bottom_up(self, x):
-    out = tf.nn.relu(conv2d(x, 'conv_in', [1, 2, 2, 1]), with_batch_norm=self.with_batch_norm)
+    out = tf.nn.relu(conv2d(x, 'conv_in', [1, 2, 2, 1], with_batch_norm=self.with_batch_norm))
     out = reduction_block(out, 'reduction_block_0', is_activate_input=False, with_batch_norm=self.with_batch_norm)
     out = reduction_block(out, 'reduction_block_1', with_batch_norm=self.with_batch_norm)
     out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv1', [1, 1, 1, 1], with_batch_norm=self.with_batch_norm)

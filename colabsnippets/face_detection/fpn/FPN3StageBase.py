@@ -7,7 +7,7 @@ from ...ops import conv2d
 
 class FPN3StageBase(FPNBase):
   def __init__(self, name='fpn3stagebase', anchors=None, stage_filters=None, with_detection_module=True,
-               use_minimal_anchors=True):
+               use_minimal_anchors=True, net_suffix = None):
     self.with_detection_module = with_detection_module
     self.stage_filters = stage_filters
     if use_minimal_anchors:
@@ -21,10 +21,13 @@ class FPN3StageBase(FPNBase):
       stage3_anchors = [create_anchor(i) for i in [64, 128, 160, 224, 320, 416, 512]]
       anchors = anchors if anchors is not None else [stage1_anchors, stage2_anchors, stage3_anchors]
 
-    if with_detection_module:
-      name += '_ctx'
-    if use_minimal_anchors:
-      name += '_v2'
+    if net_suffix is not None:
+      name += net_suffix
+    else:
+      if with_detection_module:
+        name += '_ctx'
+      if use_minimal_anchors:
+        name += '_v2'
     super().__init__(name=name, anchors=anchors, stage_idx_offset=1)
 
   def init_bottom_up_weights(self, weight_processor):
