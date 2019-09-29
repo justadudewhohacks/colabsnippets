@@ -66,10 +66,10 @@ class EpochStatsFPN:
     avg_no_object_losses_by_stage = self.total_no_object_losses_by_stage / self.num_gt_anchors_by_stage
     avg_offsets_losses_by_stage = self.total_offsets_losses_by_stage / self.num_gt_anchors_by_stage
     avg_scales_losses_by_stage = self.total_scales_losses_by_stage / self.num_gt_anchors_by_stage
-    avg_object_loss = np.sum(avg_object_losses_by_stage)
-    avg_no_object_loss = np.sum(avg_no_object_losses_by_stage)
-    avg_offsets_loss = np.sum(avg_offsets_losses_by_stage)
-    avg_scales_loss = np.sum(avg_scales_losses_by_stage)
+    avg_object_loss = np.sum(self.total_object_losses_by_stage) / iteration_count
+    avg_no_object_loss = np.sum(self.total_no_object_losses_by_stage) / iteration_count
+    avg_offsets_loss = np.sum(self.total_offsets_losses_by_stage) / iteration_count
+    avg_scales_loss = np.sum(self.total_scales_losses_by_stage) / iteration_count
 
     avg_tps_score_by_stage = self.num_tps_score_by_stage / self.num_gt_anchors_by_stage
     avg_fps_score_by_stage = (self.num_preds_by_stage - self.num_tps_score_by_stage) / self.num_gt_anchors_by_stage
