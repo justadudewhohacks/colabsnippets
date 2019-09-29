@@ -17,7 +17,7 @@ def get_net_vars(net_name):
   return net_vars
 
 class TrainFPN():
-  def __init__(self, args, num_reduction_ops = 4):
+  def __init__(self, args, num_reduction_ops = 4, is_wider_only = False):
     self.net = args['net']
     self.model_name = args['model_name']
     self.start_epoch = args['start_epoch']
@@ -39,7 +39,7 @@ class TrainFPN():
     ibug_challenge_data = load_json('./ibug_challenge_data.json')
     face_detection_scrapeddb_data = load_json('./face_detection_scrapeddb_data.json')
     wider_trainData = load_json('./wider_trainData.json')
-    train_data = wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
+    train_data = wider_trainData if is_wider_only else wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
 
     image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib)
     self.train_data_loader = DataLoader(train_data, start_epoch = self.start_epoch, image_augmentor = image_augmentor, augmentation_prob = self.augmentation_prob, min_box_size_px = min_box_size_px)
