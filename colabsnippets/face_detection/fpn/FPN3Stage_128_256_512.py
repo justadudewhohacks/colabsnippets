@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from .FPN3StageBase import FPN3StageBase
-from ...ops import conv2d, reduction_block, main_block
+from ...ops import conv2d, reduction_block, main_block, depthwise_separable_conv2d
 
 
 class FPN3Stage_128_256_512(FPN3StageBase):
@@ -30,7 +30,11 @@ class FPN3Stage_128_256_512(FPN3StageBase):
   def bottom_up(self, x):
     out = tf.nn.relu(conv2d(x, 'conv_in', [1, 2, 2, 1], with_batch_norm=self.with_batch_norm))
     out = reduction_block(out, 'reduction_block_0', is_activate_input=False, with_batch_norm=self.with_batch_norm)
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv0', [1, 1, 1, 1],
+                                     with_batch_norm=self.with_batch_norm)
     out = reduction_block(out, 'reduction_block_1', with_batch_norm=self.with_batch_norm)
+    out = depthwise_separable_conv2d(tf.nn.relu(out), 'separable_conv1', [1, 1, 1, 1],
+                                     with_batch_norm=self.with_batch_norm)
     out1 = out = main_block(out, 'main_block_1_0', with_batch_norm=self.with_batch_norm)
     out = reduction_block(out, 'reduction_block_2', with_batch_norm=self.with_batch_norm)
     out2 = out = main_block(out, 'main_block_2_0', with_batch_norm=self.with_batch_norm)
