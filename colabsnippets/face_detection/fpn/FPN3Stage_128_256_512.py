@@ -8,7 +8,8 @@ class FPN3Stage_128_256_512(FPN3StageBase):
   def __init__(self, name='fpn3stage_128_256_512', with_batch_norm=True):
     self.with_batch_norm = with_batch_norm
     super().__init__(name=name, stage_filters=[128, 256, 512],
-                     with_detection_module=True, use_minimal_anchors=True, net_suffix="", out_channels=128)
+                     with_detection_module=True, use_minimal_anchors=True, net_suffix="", out_channels=128,
+                     with_batch_norm=True)
 
   def init_bottom_up_weights(self, weight_processor):
     weight_processor.process_conv_weights(3, 8, 'conv_in', filter_size=3, with_batch_norm=self.with_batch_norm)
@@ -19,9 +20,11 @@ class FPN3Stage_128_256_512(FPN3StageBase):
     weight_processor.process_depthwise_separable_conv2d_weights(64, 128, 'separable_conv1',
                                                                 with_batch_norm=self.with_batch_norm)
     weight_processor.process_main_block_weights(128, 'main_block_1_0', with_batch_norm=self.with_batch_norm)
-    weight_processor.process_reduction_block_weights(128, 256, 'reduction_block_2', with_batch_norm=self.with_batch_norm)
+    weight_processor.process_reduction_block_weights(128, 256, 'reduction_block_2',
+                                                     with_batch_norm=self.with_batch_norm)
     weight_processor.process_main_block_weights(256, 'main_block_2_0', with_batch_norm=self.with_batch_norm)
-    weight_processor.process_reduction_block_weights(256, 512, 'reduction_block_3', with_batch_norm=self.with_batch_norm)
+    weight_processor.process_reduction_block_weights(256, 512, 'reduction_block_3',
+                                                     with_batch_norm=self.with_batch_norm)
     weight_processor.process_main_block_weights(512, 'main_block_3_0', with_batch_norm=self.with_batch_norm)
 
   def bottom_up(self, x):

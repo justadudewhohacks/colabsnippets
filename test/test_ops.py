@@ -11,6 +11,7 @@ from colabsnippets.ops import (
   dense_block
 )
 
+
 class Test_ops(unittest.TestCase):
 
   def test_normalize(self):

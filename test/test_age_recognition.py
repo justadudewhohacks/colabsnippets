@@ -8,7 +8,7 @@ from colabsnippets.age_recognition import (
   AgeXceptionTiny
 )
 
-from utils import create_fake_input_tensor, test_net
+from test.utils import create_fake_input_tensor, test_net
 
 class Test_age_recognition(unittest.TestCase):
 

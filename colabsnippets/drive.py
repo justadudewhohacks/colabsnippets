@@ -1,12 +1,11 @@
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-from google.colab import auth
-from oauth2client.client import GoogleCredentials
+drive = None
 
-auth.authenticate_user()
-gauth = GoogleAuth()
-gauth.credentials = GoogleCredentials.get_application_default()
-drive = GoogleDrive(gauth)
+def init_drive(pydrive, oauth2client, auth):
+  auth.authenticate_user()
+  gauth = pydrive.auth.GoogleAuth()
+  gauth.credentials = oauth2client.client.GoogleCredentials.get_application_default()
+  global drive
+  drive = pydrive.drive.GoogleDrive(gauth)
 
 def get_global_drive_instance():
   return drive

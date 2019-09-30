@@ -6,7 +6,7 @@ from colabsnippets.nn import (
   XceptionTiny
 )
 
-from utils import create_fake_input_tensor, test_net
+from test.utils import create_fake_input_tensor, test_net
 
 class Test_nn(unittest.TestCase):
 

@@ -18,20 +18,6 @@ def shuffle_array(arr):
 def load_json_if_exists(filepath):
   return load_json(filepath) if os.path.exists(filepath) else []
 
-def save_meta_json(var_list, filename):
-  meta_data = []
-  for var in var_list:
-    meta_data.append({ 'shape': var.get_shape().as_list(), 'name': var.name })
-  meta_json = open(filename + '.json', 'w')
-  meta_json.write(json.dumps(meta_data))
-  meta_json.close()
-
-def save_weights(var_list, filename):
-  checkpoint_data = np.array([], dtype = 'float32')
-  for var in var_list:
-    checkpoint_data = np.append(checkpoint_data, var.eval().flatten())
-  np.save(filename, checkpoint_data)
-
 # auto recompile ops in case of new batch size
 def forward_factory(compile_forward_op, batch_size, image_size):
   X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
