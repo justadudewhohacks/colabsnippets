@@ -8,10 +8,10 @@ class WeightInitializer:
 
   def process_batch_norm_weights(self, channels, name):
     with tf.variable_scope(name):
-      tf.get_variable('mean', shape=[channels], initializer=tf.keras.initializers.Zeros)
-      tf.get_variable('variance', shape=[channels], initializer=tf.keras.initializers.Ones)
-      tf.get_variable('offset', shape=[channels], initializer=tf.keras.initializers.Zeros)
-      tf.get_variable('scale', shape=[channels], initializer=tf.keras.initializers.Ones)
+      self.bias_initializer('mean', [channels])
+      self.weight_initializer('variance', [channels])
+      self.bias_initializer('offset', [channels])
+      self.weight_initializer('scale', [channels])
 
   def process_conv_weights(self, channels_in, channels_out, name, filter_size=3, with_batch_norm=False):
     with tf.variable_scope(name):
