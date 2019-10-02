@@ -13,10 +13,11 @@ def normalize(x, mean_rgb):
   return tf.divide(tf.subtract(x, avg_rgb), 256)
 
 
-def batch_norm(x, name):
+def batch_norm(x, name, is_use_fused_bn=False):
   with tf.variable_scope(name):
-    return tf.nn.batch_normalization(x, tf.get_variable('mean'), tf.get_variable('variance'), tf.get_variable('offset'),
-                                     tf.get_variable('scale'), 1e-3)
+    bn = tf.nn.fused_batch_norm if is_use_fused_bn else tf.nn.batch_normalization
+    return bn(x, tf.get_variable('mean'), tf.get_variable('variance'), tf.get_variable('offset'),
+              tf.get_variable('scale'), 1e-3)
 
 
 def conv2d(x, name, stride, with_batch_norm=False):
