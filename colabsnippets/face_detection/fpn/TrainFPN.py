@@ -1,12 +1,14 @@
 import random
 import time
-import tensorflow as tf
-import numpy as np
 
-from ...utils import load_json, try_upload_file, gpu_session
-from ..AlbumentationsAugmentor import AlbumentationsAugmentor
+import numpy as np
+import tensorflow as tf
+
 from .DataLoader import DataLoader
 from .EpochStatsFPN import EpochStatsFPN
+from ..AlbumentationsAugmentor import AlbumentationsAugmentor
+from ...utils import load_json, try_upload_file, gpu_session
+
 
 def get_net_vars(net_name):
   all_vars = tf.global_variables(net_name)
@@ -16,8 +18,9 @@ def get_net_vars(net_name):
       net_vars.append(var)
   return net_vars
 
+
 class TrainFPN():
-  def __init__(self, args, num_reduction_ops = 4, is_wider_only = False):
+  def __init__(self, args, num_reduction_ops=4, is_wider_only=False):
     self.net = args['net']
     self.model_name = args['model_name']
     self.start_epoch = args['start_epoch']
@@ -42,9 +45,14 @@ class TrainFPN():
     train_data = wider_trainData if is_wider_only else wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
 
     self.image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib)
-    self.train_data_loader = DataLoader(train_data, start_epoch = self.start_epoch, image_augmentor = image_augmentor, augmentation_prob = self.augmentation_prob, min_box_size_px = min_box_size_px)
-    self.wider_anchor_epoch_data_loader = DataLoader(wider_trainData, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
-    self.ibug_anchor_epoch_data_loader = DataLoader(ibug_challenge_data, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
+    self.train_data_loader = DataLoader(train_data, start_epoch=self.start_epoch, image_augmentor=self.image_augmentor,
+                                        augmentation_prob=self.augmentation_prob, min_box_size_px=min_box_size_px)
+    self.wider_anchor_epoch_data_loader = DataLoader(wider_trainData, start_epoch=0,
+                                                     image_augmentor=self.image_augmentor, augmentation_prob=0.0,
+                                                     min_box_size_px=min_box_size_px)
+    self.ibug_anchor_epoch_data_loader = DataLoader(ibug_challenge_data, start_epoch=0,
+                                                    image_augmentor=self.image_augmentor, augmentation_prob=0.0,
+                                                    min_box_size_px=min_box_size_px)
 
     print('starting at epoch:', self.start_epoch)
     print('---------------------------')
@@ -77,22 +85,25 @@ class TrainFPN():
 
   def train(self):
     if self.start_epoch != 0:
-      self.net.load_weights("{}_epoch{}".format(self.model_name, self.start_epoch - 1), net_json_file=self.net.name + '.json')
+      self.net.load_weights("{}_epoch{}".format(self.model_name, self.start_epoch - 1),
+                            net_json_file=self.net.name + '.json')
       print('done loading weights')
     else:
       self.net.init_trainable_weights()
       self.net.save_meta_json(self.net.name)
 
     log_file = open('./log.txt', 'w')
+
     def run(sess):
       # compile graphs
       print('compiling graphs')
       forward_train_ops_by_image_size = {}
       for image_size in self.image_sizes:
-        out_num_cells = int(image_size / (2**self.num_reduction_ops))
+        out_num_cells = int(image_size / (2 ** self.num_reduction_ops))
         forward_train_ops_by_image_size[image_size] = self.net.forward_factory(
-            sess, self.batch_size, image_size, out_num_cells = out_num_cells, with_train_ops = True,
-            learning_rate = self.learning_rate, object_scale = self.object_scale, coord_scale = self.coord_scale, no_object_scale = self.no_object_scale, apply_scale_loss = tf.abs)
+          sess, self.batch_size, image_size, out_num_cells=out_num_cells, with_train_ops=True,
+          learning_rate=self.learning_rate, object_scale=self.object_scale, coord_scale=self.coord_scale,
+          no_object_scale=self.no_object_scale, apply_scale_loss=tf.abs)
 
       sess.run(tf.global_variables_initializer())
 
@@ -117,17 +128,19 @@ class TrainFPN():
 
         stats = epoch_stats.update(preds, batch_gt_boxes)
         format_array = lambda arr: str(["{:.4f}".format(l) for l in arr])
-        add_loss_entry = lambda entry: ", {}= {} ({})".format(entry, format_array(preds[entry]), format_array(preds[entry] / np.array(stats["num_gt_anchors_by_stage"])))
+        add_loss_entry = lambda entry: ", {}= {} ({})".format(entry, format_array(preds[entry]), format_array(
+          preds[entry] / np.array(stats["num_gt_anchors_by_stage"])))
         log_file.write(
-            "epoch " + str(current_epoch) + ", (" + str(data_loader.current_idx) + " of " + str(data_loader.get_end_idx()) + ")"
-              + ", image_size= {}".format(image_size)
-              + ", num_gt_boxes= {}".format(stats["num_gt_boxes"])
-              + ", loss= {:.4f} ({:.4f})".format(preds["loss"], preds["loss"] / stats["num_gt_boxes"])
-              + add_loss_entry("weighted_object_losses_by_stage")
-              + add_loss_entry("weighted_no_object_losses_by_stage")
-              + add_loss_entry("weighted_offset_losses_by_stage")
-              + add_loss_entry("weighted_scales_losses_by_stage")
-              + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
+          "epoch " + str(current_epoch) + ", (" + str(data_loader.current_idx) + " of " + str(
+            data_loader.get_end_idx()) + ")"
+          + ", image_size= {}".format(image_size)
+          + ", num_gt_boxes= {}".format(stats["num_gt_boxes"])
+          + ", loss= {:.4f} ({:.4f})".format(preds["loss"], preds["loss"] / stats["num_gt_boxes"])
+          + add_loss_entry("weighted_object_losses_by_stage")
+          + add_loss_entry("weighted_no_object_losses_by_stage")
+          + add_loss_entry("weighted_offset_losses_by_stage")
+          + add_loss_entry("weighted_scales_losses_by_stage")
+          + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
 
         if current_epoch != data_loader.epoch:
           print('epoch done: ' + str(current_epoch))
