@@ -32,7 +32,7 @@ class EpochStatsFPN:
       "batch_scores_by_stage": preds["batch_scores_by_stage"],
       # TODO
       "batch_pred_boxes": batch_boxes_by_stage_to_boxes_by_batch(preds["batch_pred_boxes_by_stage"]),
-      "gt_masks_by_stage": preds["gt_masks_by_stage"]
+      "pos_anchors_masks_by_stage": preds["pos_anchors_masks_by_stage"]
     }
     # TODO: by stage
     stats = calculate_stats(inputs, score_thresh = 0.5, iou_threshs = [0.1, 0.3, 0.5])
