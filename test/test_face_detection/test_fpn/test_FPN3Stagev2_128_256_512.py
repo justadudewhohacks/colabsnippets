@@ -16,8 +16,3 @@ class Test_FPN3Stagev2_128_256_512(unittest.TestCase):
     net = FPN3Stagev2_128_256_512()
     forward = lambda: net.forward(create_fake_input_tensor(224), 1, 224)
     test_net_save_load_forward(net, forward)
-
-  def test_save_load_forward_no_bn(self):
-    net = FPN3Stagev2_128_256_512(with_batch_norm=False)
-    forward = lambda: net.forward(create_fake_input_tensor(224), 1, 224)
-    test_net_save_load_forward(net, forward)

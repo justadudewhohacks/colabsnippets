@@ -41,7 +41,7 @@ class TrainFPN():
     wider_trainData = load_json('./wider_trainData.json')
     train_data = wider_trainData if is_wider_only else wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
 
-    image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib)
+    self.image_augmentor = AlbumentationsAugmentor(albumentations_lib, augment_lib)
     self.train_data_loader = DataLoader(train_data, start_epoch = self.start_epoch, image_augmentor = image_augmentor, augmentation_prob = self.augmentation_prob, min_box_size_px = min_box_size_px)
     self.wider_anchor_epoch_data_loader = DataLoader(wider_trainData, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
     self.ibug_anchor_epoch_data_loader = DataLoader(ibug_challenge_data, start_epoch = 0, image_augmentor = image_augmentor, augmentation_prob = 0.0, min_box_size_px = min_box_size_px)
