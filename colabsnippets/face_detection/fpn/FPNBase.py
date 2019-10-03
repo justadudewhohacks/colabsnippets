@@ -116,7 +116,7 @@ class FPNBase(NeuralNetwork):
           batch_boxes_by_stage[s][b].append(box)
     return batch_boxes_by_stage
 
-  def get_anchors(self, box, image_size, cond_iou):
+  def get_positive_anchors(self, box, image_size, iou_threshold=0.5):
 
     # TODO: what if box centers are out of grid?
     in_grid_range = lambda val, num_cells: min(num_cells - 1, max(0, val))
@@ -129,7 +129,7 @@ class FPNBase(NeuralNetwork):
       for anchor_idx, anchor in enumerate(stage_anchors):
         aw, ah = anchor
         iou = calculate_iou((0, 0, aw, ah), (0, 0, box_w, box_h))
-        if cond_iou(iou):
+        if iou >= iou_threshold:
           ct_x = x + (w / 2)
           ct_y = y + (h / 2)
           stage_num_cells = self.get_num_cells_for_stage(image_size, stage_idx)
@@ -138,12 +138,6 @@ class FPNBase(NeuralNetwork):
           positive_anchors.append([stage_idx, col, row, anchor_idx])
 
     return positive_anchors
-
-  def get_positive_anchors(self, box, image_size, iou_threshold=0.5):
-    return self.get_anchors(box, image_size, lambda iou: iou >= iou_threshold)
-
-  def get_negative_anchors(self, box, image_size, iou_threshold=0.3):
-    return self.get_anchors(box, image_size, lambda iou: iou < iou_threshold)
 
   def to_gt_coords(self, gt_box, positive_anchor, image_size):
     stage_idx, col, row, anchor_idx = positive_anchor
@@ -163,7 +157,7 @@ class FPNBase(NeuralNetwork):
 
     return [gt_x, gt_y, gt_w, gt_h]
 
-  def create_gt_masks(self, batch_gt_boxes, image_size):
+  def create_gt_masks(self, batch_gt_boxes, image_size, pos_iou_threshold=0.5, neg_iou_threshold=0.3):
     batch_size = len(batch_gt_boxes)
 
     pos_anchors_masks_by_stage = []
@@ -175,7 +169,7 @@ class FPNBase(NeuralNetwork):
       pos_anchors_masks_by_stage.append(
         np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
       neg_anchors_masks_by_stage.append(
-        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+        np.ones([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
       offsets_by_stage.append(
         np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
       scales_by_stage.append(
@@ -183,8 +177,8 @@ class FPNBase(NeuralNetwork):
 
     for batch_idx in range(0, batch_size):
       for gt_box in batch_gt_boxes[batch_idx]:
-        positive_anchors = self.get_positive_anchors(gt_box, image_size)
-        negative_anchors = self.get_negative_anchors(gt_box, image_size)
+        positive_anchors = self.get_positive_anchors(gt_box, image_size, iou_threshold=pos_iou_threshold)
+        soft_positive_anchors = self.get_positive_anchors(gt_box, image_size, iou_threshold=neg_iou_threshold)
 
         # if len(positive_anchors) == 0:
         # print('warning, no positive_anchors for box: ' + str(gt_box))
@@ -199,9 +193,9 @@ class FPNBase(NeuralNetwork):
           offsets_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_x, gt_y]
           scales_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = [gt_w, gt_h]
 
-        for negative_anchor in negative_anchors:
-          stage_idx, col, row, anchor_idx = negative_anchor
-          neg_anchors_masks_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = 1
+        for soft_positive_anchor in soft_positive_anchors:
+          stage_idx, col, row, anchor_idx = soft_positive_anchor
+          neg_anchors_masks_by_stage[stage_idx][batch_idx, col, row, anchor_idx, :] = 0
 
     masks = {
       "pos_anchors_masks_by_stage": pos_anchors_masks_by_stage,
