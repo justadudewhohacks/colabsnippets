@@ -135,8 +135,7 @@ class DataLoader(BatchLoader):
       image = self.load_image(data)
       boxes = self.extract_data_labels(data)
       if random.random() < self.augmentation_prob:
-        roi = min_bbox(boxes)
-        image, boxes = self.image_augmentor.augment(image, boxes = boxes, random_crop = roi, resize = image_size)
+        image, boxes = self.image_augmentor.augment(image, boxes = boxes, image_size = image_size)
       else:
         image, boxes = self.image_augmentor.resize_and_to_square(image, boxes = boxes, image_size = image_size)
       batch_x.append(image)
@@ -144,7 +143,7 @@ class DataLoader(BatchLoader):
 
     return batch_x, batch_y
 
-  def next_batch(self, batch_size, image_size):
+  def next_batch(self, batch_size, image_size = None):
     batch_x, batch_y = [], []
     while len(batch_x) < batch_size:
       next_batch = BatchLoader.next_batch(self, 1, image_size = image_size)

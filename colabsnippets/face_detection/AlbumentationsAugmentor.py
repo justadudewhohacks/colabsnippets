@@ -6,10 +6,8 @@ from ..utils import fix_boxes
 
 
 class AlbumentationsAugmentor:
-  def __init__(self, albumentations_lib, augment_lib):
+  def __init__(self, albumentations_lib):
     self.albumentations_lib = albumentations_lib
-    # TODO: remove this
-    self.augment_lib = augment_lib
 
     self.max_rotation_angle = 30
     self.max_stretch_x = 1.4
@@ -27,6 +25,9 @@ class AlbumentationsAugmentor:
     self.max_holes = 16
     self.max_hole_rel_size = 0.05
     self.set_initial_probs()
+
+    self.bbox_params = self.albumentations_lib.BboxParams(format='coco', label_fields=['labels'], min_area=0.0,
+                                                          min_visibility=0.0)
 
   def clear_probs(self):
     self.prob_rotate = 0.0
@@ -63,27 +64,25 @@ class AlbumentationsAugmentor:
 
     return (size, down_scaled_dim) if is_stretch_x else (down_scaled_dim, size)
 
-  def augment(self, img, boxes=[], random_crop=None, resize=None):
-    def abs_coords(bbox, img):
-      height, width = img.shape[:2]
-      min_x, min_y, max_x_or_w, max_y_or_h = bbox
-      return [int(min_x * width), int(min_y * height), int(max_x_or_w * width), int(max_y_or_h * height)]
-
-    def rel_coords(bbox, img):
-      height, width = img.shape[:2]
-      min_x, min_y, max_x_or_w, max_y_or_h = bbox
-      return [min_x / width, min_y / height, max_x_or_w / width, max_y_or_h / height]
-
+  def _fix_rel_boxes(self, boxes):
     fixed_boxes = []
     for x, y, w, h in boxes:
       x, y = max(0, x), max(0, y)
       w, h = min(1.0 - x, w), min(1.0 - y, h)
       fixed_boxes.append((x, y, w, h))
-    boxes = fixed_boxes
+    return fixed_boxes
 
-    bbox_params = self.albumentations_lib.BboxParams(format='coco', label_fields=['labels'], min_area=0.0,
-                                                     min_visibility=0.0)
+  def _abs_coords(self, bbox, img):
+    height, width = img.shape[:2]
+    min_x, min_y, max_x_or_w, max_y_or_h = bbox
+    return [int(min_x * width), int(min_y * height), int(max_x_or_w * width), int(max_y_or_h * height)]
 
+  def _rel_coords(self, bbox, img):
+    height, width = img.shape[:2]
+    min_x, min_y, max_x_or_w, max_y_or_h = bbox
+    return [min_x / width, min_y / height, max_x_or_w / width, max_y_or_h / height]
+
+  def _augment_abs_boxes(self, img, boxes, resize):
     transforms = self.albumentations_lib.augmentations.transforms
     Compose = self.albumentations_lib.Compose
 
@@ -94,22 +93,20 @@ class AlbumentationsAugmentor:
                              border_mode=cv2.BORDER_CONSTANT),
       transforms.Rotate(p=self.prob_rotate, limit=(-self.max_rotation_angle, self.max_rotation_angle),
                         border_mode=cv2.BORDER_CONSTANT)
-    ], bbox_params)
-
-    abs_boxes = fix_boxes([abs_coords(box, img) for box in boxes], max(img.shape[0:2]), 1)
-    res = aug_rot(image=img, bboxes=abs_boxes, labels=['' for box in boxes])
+    ], self.bbox_params)
+    res = aug_rot(image=img, bboxes=boxes, labels=['' for _ in boxes])
 
     res = Compose([
       transforms.RandomSizedBBoxSafeCrop(res['image'].shape[0], res['image'].shape[1], p=1.0),
       transforms.LongestMaxSize(p=1.0, max_size=resize)
-    ], bbox_params)(**res)
+    ], self.bbox_params)(**res)
 
     stretch_x, stretch_y = self._get_stretch_shape(resize)
     res = Compose([
       transforms.HorizontalFlip(p=self.prob_flip),
       transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch),
       transforms.PadIfNeeded(p=1.0, min_height=resize, min_width=resize, border_mode=cv2.BORDER_CONSTANT)
-    ], bbox_params)(**res)
+    ], self.bbox_params)(**res)
 
     img, boxes = res['image'], res['bboxes']
 
@@ -142,9 +139,24 @@ class AlbumentationsAugmentor:
     # TODO: module 'albumentations.augmentations.transforms' has no attribute 'RandomGridShuffle'
     # img = transforms.RandomGridShuffle(p = 1.0, grid=(3, 3)).apply(img)
 
-    boxes = [rel_coords(box, res['image']) for box in boxes]
     return img, boxes
 
-  def resize_and_to_square(self, image, boxes=None, image_size=None):
-    # TODO: implement with albumentations
-    return self.augment_lib.augment(image, boxes=boxes, pad_to_square=True, resize=image_size)
+  def augment(self, img, boxes=[], image_size=None):
+    boxes = fix_boxes([self._abs_coords(box, img) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]), 1)
+    img, boxes = self._augment_abs_boxes(img, boxes, image_size)
+    boxes = [self._rel_coords(box, img) for box in boxes]
+    return img, boxes
+
+  def resize_and_to_square(self, img, boxes=[], image_size=None):
+    boxes = fix_boxes([self._abs_coords(box, img) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]), 1)
+    transforms = self.albumentations_lib.augmentations.transforms
+    Compose = self.albumentations_lib.Compose
+    res = Compose([
+      transforms.LongestMaxSize(p=1.0, max_size=image_size),
+      transforms.PadIfNeeded(p=1.0, min_height=image_size, min_width=image_size, border_mode=cv2.BORDER_CONSTANT)
+    ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
+    img, boxes = res['image'], res['bboxes']
+    boxes = [self._rel_coords(box, img) for box in boxes]
+    return img, boxes
+
+    # return self.augment_lib.augment(image, boxes=boxes, pad_to_square=True, resize=image_size)
