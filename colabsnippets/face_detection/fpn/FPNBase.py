@@ -31,8 +31,8 @@ class FPNBase(NeuralNetwork):
   def forward(self, x, batch_size, image_size, out_num_cells=None):
     pass
 
-  def get_num_anchors_per_stage(self):
-    return len(self.anchors[0])
+  def get_num_anchors_for_stage(self, stage_idx):
+    return len(self.anchors[stage_idx])
 
   def get_num_stages(self):
     return len(self.anchors)
@@ -167,13 +167,13 @@ class FPNBase(NeuralNetwork):
     for stage_idx in range(0, self.get_num_stages()):
       stage_num_cells = self.get_num_cells_for_stage(image_size, stage_idx)
       pos_anchors_masks_by_stage.append(
-        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_for_stage(stage_idx), 1]))
       neg_anchors_masks_by_stage.append(
-        np.ones([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1]))
+        np.ones([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_for_stage(stage_idx), 1]))
       offsets_by_stage.append(
-        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
+        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_for_stage(stage_idx), 2]))
       scales_by_stage.append(
-        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2]))
+        np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_for_stage(stage_idx), 2]))
 
     for batch_idx in range(0, batch_size):
       for gt_box in batch_gt_boxes[batch_idx]:
@@ -205,14 +205,16 @@ class FPNBase(NeuralNetwork):
     }
     return masks
 
-  def coords_and_scores(self, x, stage_num_cells, batch_size):
-    out = tf.reshape(x, [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 5])
+  def coords_and_scores(self, x, image_size, batch_size, stage_idx):
+    stage_num_cells = self.get_num_cells_for_stage(image_size, stage_idx)
+    stage_num_anchors = self.get_num_anchors_for_stage(stage_idx)
+    out = tf.reshape(x, [batch_size, stage_num_cells, stage_num_cells, stage_num_anchors, 5])
     offsets = tf.slice(out, [0, 0, 0, 0, 0],
-                       [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2])
+                       [batch_size, stage_num_cells, stage_num_cells, stage_num_anchors, 2])
     scales = tf.slice(out, [0, 0, 0, 0, 2],
-                      [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 2])
+                      [batch_size, stage_num_cells, stage_num_cells, stage_num_anchors, 2])
     scores = tf.slice(out, [0, 0, 0, 0, 4],
-                      [batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_per_stage(), 1])
+                      [batch_size, stage_num_cells, stage_num_cells, stage_num_anchors, 1])
     return tf.sigmoid(offsets), scales, scores
 
   def forward_factory(self, sess, batch_size, image_size, out_num_cells=20, with_train_ops=False,
@@ -236,16 +238,17 @@ class FPNBase(NeuralNetwork):
 
     if with_train_ops:
       num_stages = self.get_num_stages()
-      num_anchors_per_stage = self.get_num_anchors_per_stage()
-      num_cells_by_stage = [self.get_num_cells_for_stage(image_size, s) for s in range(0, num_stages)]
-      POS_ANCHORS_MASKS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 1]) for nc in
-                                    num_cells_by_stage]
-      NEG_ANCHORS_MASKS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 1]) for nc in
-                                    num_cells_by_stage]
-      OFFSETS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 2]) for nc in
-                          num_cells_by_stage]
-      SCALES_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, num_anchors_per_stage, 2]) for nc in
-                         num_cells_by_stage]
+      num_anchors_and_cells_by_stage = [
+        [self.get_num_anchors_for_stage(stage_idx), self.get_num_cells_for_stage(image_size, stage_idx)] for stage_idx
+        in range(0, num_stages)]
+      POS_ANCHORS_MASKS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, a, 1]) for a, nc in
+                                    num_anchors_and_cells_by_stage]
+      NEG_ANCHORS_MASKS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, a, 1]) for a, nc in
+                                    num_anchors_and_cells_by_stage]
+      OFFSETS_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, a, 2]) for a, nc in
+                          num_anchors_and_cells_by_stage]
+      SCALES_BY_STAGE = [tf.placeholder(tf.float32, [batch_size, nc, nc, a, 2]) for a, nc in
+                         num_anchors_and_cells_by_stage]
 
       object_loss_ops_by_stage = [
         tf.reduce_sum(POS_ANCHORS_MASKS_BY_STAGE[s] * focal_loss(scores_ops_by_stage[s], True)) for s in

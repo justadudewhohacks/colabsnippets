@@ -72,9 +72,9 @@ class FPN3StageBase(FPNBase):
           self.init_detection_module_weights(weight_processor)
 
       with tf.variable_scope('classifier'):
-        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_per_stage() * 5, 'conv_out_0', filter_size=1, with_batch_norm=self.with_batch_norm)
-        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_per_stage() * 5, 'conv_out_1', filter_size=1, with_batch_norm=self.with_batch_norm)
-        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_per_stage() * 5, 'conv_out_2', filter_size=1, with_batch_norm=self.with_batch_norm)
+        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_for_stage(0) * 5, 'conv_out_0', filter_size=1, with_batch_norm=self.with_batch_norm)
+        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_for_stage(1) * 5, 'conv_out_1', filter_size=1, with_batch_norm=self.with_batch_norm)
+        weight_processor.process_conv_weights(self.out_channels, self.get_num_anchors_for_stage(2) * 5, 'conv_out_2', filter_size=1, with_batch_norm=self.with_batch_norm)
 
   def context_module(self, x):
     shrink = out = tf.nn.relu(conv2d(x, 'conv_shrink', [1, 1, 1, 1], with_batch_norm=self.with_batch_norm))
@@ -134,8 +134,8 @@ class FPN3StageBase(FPNBase):
         out2 = conv2d(out2, 'conv_out_1', [1, 1, 1, 1], with_batch_norm=self.with_batch_norm)
         out3 = conv2d(out3, 'conv_out_2', [1, 1, 1, 1], with_batch_norm=self.with_batch_norm)
 
-        out1 = self.coords_and_scores(out1, self.get_num_cells_for_stage(image_size, 0), batch_size)
-        out2 = self.coords_and_scores(out2, self.get_num_cells_for_stage(image_size, 1), batch_size)
-        out3 = self.coords_and_scores(out3, self.get_num_cells_for_stage(image_size, 2), batch_size)
+        out1 = self.coords_and_scores(out1, image_size, batch_size, 0)
+        out2 = self.coords_and_scores(out2, image_size, batch_size, 1)
+        out3 = self.coords_and_scores(out3, image_size, batch_size, 2)
 
       return out1, out2, out3
