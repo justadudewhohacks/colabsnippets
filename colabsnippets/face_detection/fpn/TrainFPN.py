@@ -21,7 +21,8 @@ def get_net_vars(net_name):
 
 
 class TrainFPN:
-  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_flip_crop_gray_augmentor=False):
+  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_exclude_wider=False,
+               is_flip_crop_gray_augmentor=False):
     self.net = args['net']
     self.model_name = args['model_name']
     self.start_epoch = args['start_epoch']
@@ -42,7 +43,11 @@ class TrainFPN:
     ibug_challenge_data = load_json('./ibug_challenge_data.json')
     face_detection_scrapeddb_data = load_json('./face_detection_scrapeddb_data.json')
     wider_trainData = load_json('./wider_trainData.json')
-    train_data = wider_trainData if is_wider_only else wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
+    train_data = wider_trainData + ibug_challenge_data + face_detection_scrapeddb_data
+    if is_wider_only:
+      train_data = wider_trainData
+    if is_exclude_wider:
+      train_data = ibug_challenge_data + face_detection_scrapeddb_data
 
     self.image_augmentor = FlipCropGrayAugmentor(
       albumentations_lib) if is_flip_crop_gray_augmentor else AlbumentationsAugmentor(albumentations_lib)
