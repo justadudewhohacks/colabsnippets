@@ -167,7 +167,7 @@ class TrainFPN:
           try_upload_file(epoch_txt_filename, self.drive_upload_epoch_txts_folder_id)
           try_upload_file(checkpoint_name + ".npy", self.drive_upload_checkpoints_folder_id)
 
-          epoch_stats = EpochStatsFPN()
+          epoch_stats = EpochStatsFPN(num_stages=len(self.net.anchors))
           data_loader = self.get_data_loader()
           print()
           print('next epoch: ' + str(data_loader.epoch))
