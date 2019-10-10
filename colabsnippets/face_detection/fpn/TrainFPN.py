@@ -114,7 +114,7 @@ class TrainFPN:
       sess.run(tf.global_variables_initializer())
 
       print('start training')
-      epoch_stats = EpochStatsFPN()
+      epoch_stats = EpochStatsFPN(num_stages=len(self.net.anchors))
       data_loader = self.get_data_loader()
       last_progress = 0
 
