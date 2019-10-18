@@ -2,7 +2,7 @@ import random
 
 import cv2
 
-from colabsnippets.face_detection.AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
 
 
 class AlbumentationsAugmentor(AlbumentationsAugmentorBase):

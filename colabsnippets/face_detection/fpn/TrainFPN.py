@@ -4,10 +4,8 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from colabsnippets.face_detection.FlipCropGrayAugmentor import FlipCropGrayAugmentor
 from .DataLoader import DataLoader
 from .EpochStatsFPN import EpochStatsFPN
-from ..AlbumentationsAugmentor import AlbumentationsAugmentor
 from ...utils import load_json, try_upload_file, gpu_session
 
 
@@ -21,8 +19,7 @@ def get_net_vars(net_name):
 
 
 class TrainFPN:
-  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_exclude_wider=False,
-               is_flip_crop_gray_augmentor=False):
+  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_exclude_wider=False):
     self.net = args['net']
     self.model_name = args['model_name']
     self.start_epoch = args['start_epoch']
@@ -35,7 +32,7 @@ class TrainFPN:
     self.drive_upload_epoch_txts_folder_id = args['drive_upload_epoch_txts_folder_id']
     self.drive_upload_checkpoints_folder_id = args['drive_upload_checkpoints_folder_id']
     self.image_sizes = args["image_sizes"]
-    albumentations_lib = args["albumentations_lib"]
+    image_augmentor = args["image_augmentor"]
     min_box_size_px = args['min_box_size_px']
 
     self.num_reduction_ops = num_reduction_ops
@@ -49,15 +46,13 @@ class TrainFPN:
     if is_exclude_wider:
       train_data = ibug_challenge_data + face_detection_scrapeddb_data
 
-    self.image_augmentor = FlipCropGrayAugmentor(
-      albumentations_lib) if is_flip_crop_gray_augmentor else AlbumentationsAugmentor(albumentations_lib)
-    self.train_data_loader = DataLoader(train_data, start_epoch=self.start_epoch, image_augmentor=self.image_augmentor,
+    self.train_data_loader = DataLoader(train_data, start_epoch=self.start_epoch, image_augmentor=image_augmentor,
                                         augmentation_prob=self.augmentation_prob, min_box_size_px=min_box_size_px)
     self.wider_anchor_epoch_data_loader = DataLoader(wider_trainData, start_epoch=0,
-                                                     image_augmentor=self.image_augmentor, augmentation_prob=0.0,
+                                                     image_augmentor=image_augmentor, augmentation_prob=0.0,
                                                      min_box_size_px=min_box_size_px)
     self.ibug_anchor_epoch_data_loader = DataLoader(ibug_challenge_data, start_epoch=0,
-                                                    image_augmentor=self.image_augmentor, augmentation_prob=0.0,
+                                                    image_augmentor=image_augmentor, augmentation_prob=0.0,
                                                     min_box_size_px=min_box_size_px)
 
     print('starting at epoch:', self.start_epoch)

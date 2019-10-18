@@ -3,6 +3,7 @@ import os
 import random
 
 import tensorflow as tf
+from numpy import Inf
 
 from .drive import get_global_drive_instance
 
@@ -67,19 +68,6 @@ def gpu_session(callback, device_name='/gpu:0'):
       return callback(session)
 
 
-def fix_boxes(boxes, image_size, min_box_size_px):
-  out_boxes = []
-  for box in boxes:
-    x, y, w, h = box
-
-    if (image_size * w) <= min_box_size_px or (image_size * h) <= min_box_size_px:
-      continue
-
-    out_boxes.append(box)
-
-  return out_boxes
-
-
 def min_bbox_from_pts(pts):
   min_x, min_y, max_x, max_y = 1.0, 1.0, 0, 0
   for x, y in pts:
@@ -98,3 +86,42 @@ def min_bbox(boxes):
     pts.append([x, y])
     pts.append([x + w, y + h])
   return min_bbox_from_pts(pts)
+
+
+def num_in_range(val, min_val, max_val):
+  return min(max(min_val, val), max_val)
+
+
+def abs_bbox_coords(bbox, hw):
+  height, width = hw[:2]
+  min_x, min_y, max_x_or_w, max_y_or_h = bbox
+  return [int(min_x * width), int(min_y * height), int(max_x_or_w * width), int(max_y_or_h * height)]
+
+
+def rel_bbox_coords(bbox, hw):
+  height, width = hw[:2]
+  min_x, min_y, max_x_or_w, max_y_or_h = bbox
+  return [min_x / width, min_y / height, max_x_or_w / width, max_y_or_h / height]
+
+
+def filter_abs_boxes(abs_boxes, min_box_size_px=0, max_box_size_px=Inf):
+  filtered_boxes = []
+  for box in abs_boxes:
+    _, __, w, h = box
+    if min(w, h) < min_box_size_px or min(w, h) > max_box_size_px:
+      continue
+    filtered_boxes.append(box)
+  return filtered_boxes
+
+
+def fix_boxes(boxes, image_size, min_box_size_px):
+  out_boxes = []
+  for box in boxes:
+    x, y, w, h = box
+
+    if (image_size * w) <= min_box_size_px or (image_size * h) <= min_box_size_px:
+      continue
+
+    out_boxes.append(box)
+
+  return out_boxes

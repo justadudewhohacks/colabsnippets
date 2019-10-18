@@ -1,11 +1,17 @@
+import random
+
 import cv2
 
-from colabsnippets.face_detection.AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .crop import crop
 
 
 class FlipCropGrayAugmentor(AlbumentationsAugmentorBase):
   def __init__(self, albumentations_lib):
     super().__init__(albumentations_lib)
+
+    self.crop_min_box_target_size = 0.0
+    self.crop_max_cutoff = 0.5
 
     self.prob_crop = 0.5
     self.prob_flip = 0.5
@@ -15,8 +21,10 @@ class FlipCropGrayAugmentor(AlbumentationsAugmentorBase):
     transforms = self.albumentations_lib.augmentations.transforms
     Compose = self.albumentations_lib.Compose
 
+    if random.random() <= self.prob_crop:
+      img, boxes = crop(img, boxes, max_cutoff=self.crop_max_cutoff, min_box_target_size=self.crop_min_box_target_size)
+
     res = Compose([
-      transforms.RandomSizedBBoxSafeCrop(img.shape[0], img.shape[1], p=1.0),
       transforms.LongestMaxSize(p=1.0, max_size=resize),
       transforms.HorizontalFlip(p=self.prob_flip),
       transforms.ToGray(p=self.prob_gray),
