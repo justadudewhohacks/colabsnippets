@@ -32,6 +32,8 @@ class TrainFPN:
     self.drive_upload_epoch_txts_folder_id = args['drive_upload_epoch_txts_folder_id']
     self.drive_upload_checkpoints_folder_id = args['drive_upload_checkpoints_folder_id']
     self.image_sizes = args["image_sizes"]
+    self.compile_optimizer_op = args["compile_optimizer_op"]
+    self.stage_loss_scales = args["stage_loss_scales"]
     image_augmentor = args["image_augmentor"]
     min_box_size_px = args['min_box_size_px']
 
@@ -62,6 +64,7 @@ class TrainFPN:
     print('augmentation_prob:', self.augmentation_prob)
     print('num_reduction_ops:', self.num_reduction_ops)
     print('no_object_scale:', self.no_object_scale)
+    print('stage_loss_scales:', self.stage_loss_scales)
     print('train samples:', len(train_data))
     print('image sizes:', self.image_sizes)
     print('---------------------------')
@@ -101,10 +104,11 @@ class TrainFPN:
       forward_train_ops_by_image_size = {}
       for image_size in self.image_sizes:
         out_num_cells = int(image_size / (2 ** self.num_reduction_ops))
-        forward_train_ops_by_image_size[image_size] = self.net.forward_factory(
-          sess, self.batch_size, image_size, out_num_cells=out_num_cells, with_train_ops=True,
-          learning_rate=self.learning_rate, object_scale=self.object_scale, coord_scale=self.coord_scale,
-          no_object_scale=self.no_object_scale, apply_scale_loss=tf.abs)
+        forward_train_ops_by_image_size[image_size] = self.net.forward_train_factory(
+          sess, self.batch_size, image_size, out_num_cells=out_num_cells,
+          object_scale=self.object_scale, coord_scale=self.coord_scale,
+          no_object_scale=self.no_object_scale, apply_scale_loss=tf.abs, compile_optimizer_op=self.compile_optimizer_op,
+          stage_loss_scales=self.stage_loss_scales)
 
       sess.run(tf.global_variables_initializer())
 
