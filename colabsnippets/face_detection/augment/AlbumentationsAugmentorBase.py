@@ -17,6 +17,9 @@ class AlbumentationsAugmentorBase:
       fixed_boxes.append((x, y, w, h))
     return fixed_boxes
 
+  def _fix_abs_boxes(self, abs_boxes, hw):
+    return self._fix_rel_boxes([rel_bbox_coords(abs_box, hw) for abs_box in abs_boxes])
+
   def _augment_abs_boxes(self, img, boxes, resize):
     raise Exception("AlbumentationsAugmentorBase - _augment_abs_boxes not implemented")
 

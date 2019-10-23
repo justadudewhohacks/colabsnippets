@@ -23,6 +23,7 @@ class FlipCropGrayAugmentor(AlbumentationsAugmentorBase):
 
     if random.random() <= self.prob_crop:
       img, boxes = crop(img, boxes, max_cutoff=self.crop_max_cutoff, min_box_target_size=self.crop_min_box_target_size)
+      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
 
     res = Compose([
       transforms.LongestMaxSize(p=1.0, max_size=resize),
