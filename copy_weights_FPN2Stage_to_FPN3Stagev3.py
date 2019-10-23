@@ -2,20 +2,27 @@ import numpy as np
 import tensorflow as tf
 
 from colabsnippets.face_detection.fpn.FPN2Stage_256_512 import FPN2Stage_256_512
+from colabsnippets.face_detection.fpn.FPN2Stage_64_128 import FPN2Stage_64_128
 from colabsnippets.face_detection.fpn.FPN3Stagev3_128_256_512 import FPN3Stagev3_128_256_512
+from colabsnippets.face_detection.fpn.FPN3Stagev3_32_64_128 import FPN3Stagev3_32_64_128
 
 tf.reset_default_graph()
+
+net_from = FPN2Stage_64_128()
+net_to = FPN3Stagev3_32_64_128()
+src_checkpoint = './fpn2stage_64_128_no_wider_224_1216_32_epoch743'
 
 # net_from = FPN2Stage_128_256()
 # net_to = FPN3Stagev3_64_128_256()
 # src_checkpoint = './fpn2stage_128_256_no_wider_crop_224_1216_32_epoch664'
 
-net_from = FPN2Stage_256_512()
-net_to = FPN3Stagev3_128_256_512()
-src_checkpoint = './fpn2stage_256_512_no_wider_224_1216_32_epoch492'
+#net_from = FPN2Stage_256_512()
+#net_to = FPN3Stagev3_128_256_512()
+#src_checkpoint = './fpn2stage_256_512_no_wider_224_1216_32_epoch492'
 
 net_from.load_weights(src_checkpoint, net_json_file=net_from.name + '.json')
 net_to.init_trainable_weights()
+net_to.save_meta_json(net_to.name)
 
 with tf.Session() as sess:
   sess.run(tf.global_variables_initializer())
