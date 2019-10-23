@@ -9,7 +9,7 @@ class Test_FPN3Stagev3_64_128_256(unittest.TestCase):
     net = FPN3Stagev3_64_128_256()
     self.assertEquals(3, len(net.anchors))
     self.assertEquals(2, len(net.anchors[0]))
-    self.assertEquals(1, net.stage_idx_offset)
+    self.assertEquals(2, net.stage_idx_offset)
 
   def test_save_load_forward(self):
     net = FPN3Stagev3_64_128_256()

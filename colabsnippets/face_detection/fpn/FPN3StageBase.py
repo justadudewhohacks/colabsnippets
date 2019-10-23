@@ -7,7 +7,7 @@ from ...ops import conv2d
 
 class FPN3StageBase(FPNBase):
   def __init__(self, name='fpn3stagebase', anchors=None, stage_filters=None, with_detection_module=True,
-               use_minimal_anchors=True, net_suffix=None, out_channels=64, with_batch_norm=False):
+               use_minimal_anchors=True, net_suffix=None, out_channels=64, with_batch_norm=False, stage_idx_offset=1):
     self.with_batch_norm = with_batch_norm
     self.with_detection_module = with_detection_module
     self.stage_filters = stage_filters
@@ -30,7 +30,7 @@ class FPN3StageBase(FPNBase):
         name += '_ctx'
       if use_minimal_anchors:
         name += '_v2'
-    super().__init__(name=name, anchors=anchors, stage_idx_offset=1)
+    super().__init__(name=name, anchors=anchors, stage_idx_offset=stage_idx_offset)
 
   def init_bottom_up_weights(self, weight_processor):
     raise Exception('FPN3StageBase - init_bottom_up_weights not implemented')

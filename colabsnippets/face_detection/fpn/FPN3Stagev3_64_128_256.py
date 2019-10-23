@@ -8,7 +8,7 @@ class FPN3Stagev3_64_128_256(FPN3StageBase):
   def __init__(self, name='fpn3stagev3_64_128_256'):
     super().__init__(name=name, stage_filters=[64, 128, 256], out_channels=128,
                      with_detection_module=True, use_minimal_anchors=True, net_suffix="",
-                     with_batch_norm=False)
+                     with_batch_norm=False, stage_idx_offset=2)
 
   def init_bottom_up_weights(self, weight_processor):
     weight_processor.process_conv_weights(3, 8, 'conv_in', filter_size=3)
