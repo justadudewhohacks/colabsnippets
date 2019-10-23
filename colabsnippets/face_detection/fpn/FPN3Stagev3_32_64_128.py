@@ -6,7 +6,7 @@ from colabsnippets.ops import conv2d, reduction_block, main_block
 
 class FPN3Stagev3_32_64_128(FPN3StageBase):
   def __init__(self, name='fpn3stagev3_32_64_128'):
-    super().__init__(name=name, stage_filters=[32, 64, 128], out_channels=64,
+    super().__init__(name=name, stage_filters=[48, 64, 128], out_channels=64,
                      with_detection_module=True, use_minimal_anchors=True, net_suffix="",
                      with_batch_norm=False, stage_idx_offset=2)
 
