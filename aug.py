@@ -15,8 +15,7 @@ while True:
   abs_boxes = [abs_bbox_coords(rel_box, img.shape[0:2]) for rel_box in boxes]
   out, out_boxes = crop(img, abs_boxes, crop_range=0, is_bbox_safe=True, min_box_target_size=32)
 
-  for box in out_boxes:
-    x, y, w, h = abs_bbox_coords(box, out.shape)
+  for x, y, w, h in out_boxes:
     cv2.rectangle(out, (x, y), (x + w, y + h), (255, 0, 0), 1)
 
   print(out.shape, len(out_boxes))

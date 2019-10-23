@@ -1,6 +1,6 @@
 import random
 
-from colabsnippets.utils import min_bbox, num_in_range, rel_bbox_coords, filter_abs_boxes
+from colabsnippets.utils import min_bbox, num_in_range, rel_bbox_coords, filter_abs_boxes, abs_bbox_coords
 
 
 def crop(img, abs_boxes, crop_range=0.0, is_bbox_safe=True, max_cutoff=0.5, min_box_target_size=0):
@@ -30,7 +30,7 @@ def crop(img, abs_boxes, crop_range=0.0, is_bbox_safe=True, max_cutoff=0.5, min_
     sy = y - y0
     shifted_rel_boxes.append(rel_bbox_coords((sx, sy, w, h), cropped_img.shape))
 
-  filtered_boxes = []
+  filtered_rel_boxes = []
   for box in shifted_rel_boxes:
     x0, y0, w, h = box
     x0, y0, x1, y1 = [num_in_range(v, 0, 1) for v in [x0, y0, x0 + w, y0 + h]]
@@ -41,6 +41,8 @@ def crop(img, abs_boxes, crop_range=0.0, is_bbox_safe=True, max_cutoff=0.5, min_
     ratio = area_cut / area_prev
 
     if ratio >= max_cutoff:
-      filtered_boxes.append(box)
+      filtered_rel_boxes.append(box)
 
-  return cropped_img, filtered_boxes
+  filtered_abs_boxes = [abs_bbox_coords(box, cropped_img.shape[0:2]) for box in filtered_rel_boxes]
+
+  return cropped_img, filtered_abs_boxes
