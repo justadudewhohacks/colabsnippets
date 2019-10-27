@@ -99,8 +99,6 @@ class TrainFPN:
       self.net.init_trainable_weights()
       self.net.save_meta_json(self.net.name)
 
-    log_file = open('./log.txt', 'w')
-
     def run(sess):
       # compile graphs
       print('compiling graphs')
@@ -116,9 +114,11 @@ class TrainFPN:
       sess.run(tf.global_variables_initializer())
 
       print('start training')
-      epoch_stats = EpochStatsFPN(num_stages=len(self.net.anchors))
       data_loader = self.get_data_loader()
+      epoch_stats = EpochStatsFPN(num_stages=len(self.net.anchors))
+      log_file = open('./log' + str(data_loader.epoch) + '.txt', 'w')
       last_progress = 0
+
 
       while True:
         progress = int((data_loader.current_idx / data_loader.get_end_idx()) * 10)
@@ -151,9 +151,9 @@ class TrainFPN:
           + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
 
         if self.log_boxes_with_no_matching_anchors:
-          log_file.write(preds["gt_boxes_with_no_matching_anchors"])
+          log_file.write(str(preds["gt_boxes_with_no_matching_anchors"]))
         if self.log_boxes_with_multiple_matching_anchors:
-          log_file.write(preds["gt_boxes_with_multiple_matching_anchors"])
+          log_file.write(str(preds["gt_boxes_with_multiple_matching_anchors"]))
 
         if current_epoch != data_loader.epoch:
           print('epoch done: ' + str(current_epoch))
@@ -178,5 +178,7 @@ class TrainFPN:
           data_loader = self.get_data_loader()
           print()
           print('next epoch: ' + str(data_loader.epoch))
+          log_file.close()
+          log_file = open('./log' + str(data_loader.epoch) + '.txt', 'w')
 
     gpu_session(run)
