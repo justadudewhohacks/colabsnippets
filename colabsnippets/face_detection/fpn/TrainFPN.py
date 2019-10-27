@@ -119,7 +119,6 @@ class TrainFPN:
       log_file = open('./log' + str(data_loader.epoch) + '.txt', 'w')
       last_progress = 0
 
-
       while True:
         progress = int((data_loader.current_idx / data_loader.get_end_idx()) * 10)
         if not last_progress == progress:
@@ -150,10 +149,15 @@ class TrainFPN:
           + add_loss_entry("weighted_scales_losses_by_stage")
           + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
 
-        if self.log_boxes_with_no_matching_anchors:
-          log_file.write(str(preds["gt_boxes_with_no_matching_anchors"]))
-        if self.log_boxes_with_multiple_matching_anchors:
-          log_file.write(str(preds["gt_boxes_with_multiple_matching_anchors"]))
+        if self.log_boxes_with_no_matching_anchors and len(preds["gt_boxes_with_no_matching_anchors"]) > 0:
+          log_file.write(
+            'gt_boxes_with_no_matching_anchors= (' + str(len(preds["gt_boxes_with_no_matching_anchors"])) + ') ' + str(
+              preds["gt_boxes_with_no_matching_anchors"]) + '\n')
+        if self.log_boxes_with_multiple_matching_anchors and len(preds["gt_boxes_with_multiple_matching_anchors"]) > 0:
+          log_file.write(
+            'gt_boxes_with_multiple_matching_anchors= (' + str(
+              len(preds["gt_boxes_with_multiple_matching_anchors"])) + ') ' + str(
+              preds["gt_boxes_with_multiple_matching_anchors"]) + '\n')
 
         if current_epoch != data_loader.epoch:
           print('epoch done: ' + str(current_epoch))
