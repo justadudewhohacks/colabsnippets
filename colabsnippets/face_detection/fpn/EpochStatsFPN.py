@@ -1,8 +1,11 @@
 import time
+
 import numpy as np
-from ...utils import flatten_list
-from .calculate_stats import calculate_stats
+
 from .FPNBase import batch_boxes_by_stage_to_boxes_by_batch
+from .calculate_stats import calculate_stats
+from ...utils import flatten_list
+
 
 class EpochStatsFPN:
   def __init__(self, num_stages = 3):
@@ -25,6 +28,9 @@ class EpochStatsFPN:
     self.total_num_preds = 0
     self.total_num_gt_boxes = 0
     self.ts_epoch = time.time()
+
+    self.num_gt_boxes_with_no_matching_anchors = 0
+    self.num_gt_boxes_with_multiple_matching_anchors = 0
 
   def update(self, preds, batch_gt_boxes):
     inputs = {
@@ -54,6 +60,9 @@ class EpochStatsFPN:
     self.total_matches_05 += stats["num_matches"][2]
     self.total_num_preds += stats["num_preds"]
     self.total_num_gt_boxes += stats["num_gt_boxes"]
+
+    self.num_gt_boxes_with_no_matching_anchors += len(preds["gt_boxes_with_no_matching_anchors"])
+    self.num_gt_boxes_with_multiple_matching_anchors += len(preds["gt_boxes_with_multiple_matching_anchors"])
 
     return stats
 
@@ -108,6 +117,8 @@ class EpochStatsFPN:
     log("----------------------------")
     log("epoch_time= {}".format(time.time() - self.ts_epoch))
     log("total_num_gt_boxes= {}".format(self.total_num_gt_boxes))
+    log("num_gt_boxes_with_no_matching_anchors= {}".format(self.num_gt_boxes_with_no_matching_anchors))
+    log("num_gt_boxes_with_multiple_matching_anchors= {}".format(self.num_gt_boxes_with_multiple_matching_anchors))
     log("----------------------------")
     log("total_num_gt_anchors= {}".format(iteration_count))
     log("total_num_preds= {}".format(self.total_num_preds))
@@ -141,7 +152,7 @@ class EpochStatsFPN:
     log("avg_fps_matches_03= {:.4f}".format(avg_fps_matches_03))
     log("----------------------------")
     log("avg_tps_05= {:.4f}".format(avg_tps_05))
-    log("avg_fps_05= {:.4f}".format(avg_fps_matches_05))
+    log("avg_fps_05= {:.4f}".format(avg_fps_05))
     log("avg_tps_matches_05= {:.4f}".format(avg_tps_matches_05))
     log("avg_fps_matches_05= {:.4f}".format(avg_fps_matches_05))
     log("----------------------------")

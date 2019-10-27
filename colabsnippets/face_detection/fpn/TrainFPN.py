@@ -19,7 +19,8 @@ def get_net_vars(net_name):
 
 
 class TrainFPN:
-  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_exclude_wider=False):
+  def __init__(self, args, num_reduction_ops=4, is_wider_only=False, is_exclude_wider=False,
+               log_boxes_with_no_matching_anchors=False, log_boxes_with_multiple_matching_anchors=False):
     self.net = args['net']
     self.model_name = args['model_name']
     self.start_epoch = args['start_epoch']
@@ -38,6 +39,8 @@ class TrainFPN:
     min_box_size_px = args['min_box_size_px']
 
     self.num_reduction_ops = num_reduction_ops
+    self.log_boxes_with_no_matching_anchors = log_boxes_with_no_matching_anchors
+    self.log_boxes_with_multiple_matching_anchors = log_boxes_with_multiple_matching_anchors
 
     ibug_challenge_data = load_json('./ibug_challenge_data.json')
     face_detection_scrapeddb_data = load_json('./face_detection_scrapeddb_data.json')
@@ -146,6 +149,11 @@ class TrainFPN:
           + add_loss_entry("weighted_offset_losses_by_stage")
           + add_loss_entry("weighted_scales_losses_by_stage")
           + ", time= " + str((time.time() - ts) * 1000) + "ms \n")
+
+        if self.log_boxes_with_no_matching_anchors:
+          log_file.write(preds["gt_boxes_with_no_matching_anchors"])
+        if self.log_boxes_with_multiple_matching_anchors:
+          log_file.write(preds["gt_boxes_with_multiple_matching_anchors"])
 
         if current_epoch != data_loader.epoch:
           print('epoch done: ' + str(current_epoch))

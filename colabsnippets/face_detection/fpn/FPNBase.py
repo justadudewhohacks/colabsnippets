@@ -186,16 +186,18 @@ class FPNBase(NeuralNetwork):
       scales_by_stage.append(
         np.zeros([batch_size, stage_num_cells, stage_num_cells, self.get_num_anchors_for_stage(stage_idx), 2]))
 
+    gt_boxes_with_no_matching_anchors = []
+    gt_boxes_with_multiple_matching_anchors = []
     for batch_idx in range(0, batch_size):
       for gt_box in batch_gt_boxes[batch_idx]:
         positive_anchors = self.get_positive_anchors(gt_box, image_size, iou_threshold=pos_iou_threshold)
         soft_positive_anchors = self.get_positive_anchors(gt_box, image_size, iou_threshold=neg_iou_threshold)
 
-        # if len(positive_anchors) == 0:
-        # print('warning, no positive_anchors for box: ' + str(gt_box))
+        if len(positive_anchors) == 0:
+          gt_boxes_with_no_matching_anchors.append(gt_box)
 
-        # if len(positive_anchors) > 1:
-        # print('warning, ' + str(len(positive_anchors)) + ' positive_anchors for box: ' + str(gt_box))
+        if len(positive_anchors) > 1:
+          gt_boxes_with_multiple_matching_anchors.append(gt_box)
 
         for positive_anchor in positive_anchors:
           stage_idx, col, row, anchor_idx = positive_anchor
@@ -213,6 +215,8 @@ class FPNBase(NeuralNetwork):
       "neg_anchors_masks_by_stage": neg_anchors_masks_by_stage,
       "offsets_by_stage": offsets_by_stage,
       "scales_by_stage": scales_by_stage,
+      "gt_boxes_with_no_matching_anchors": gt_boxes_with_no_matching_anchors,
+      "gt_boxes_with_multiple_matching_anchors": gt_boxes_with_multiple_matching_anchors
     }
     return masks
 
@@ -343,7 +347,9 @@ class FPNBase(NeuralNetwork):
         "pos_anchors_masks_by_stage": masks["pos_anchors_masks_by_stage"],
         "neg_anchors_masks_by_stage": masks["neg_anchors_masks_by_stage"],
         "batch_scores_by_stage": batch_scores_by_stage,
-        "batch_pred_boxes_by_stage": batch_pred_boxes_by_stage
+        "batch_pred_boxes_by_stage": batch_pred_boxes_by_stage,
+        "gt_boxes_with_no_matching_anchors": masks["gt_boxes_with_no_matching_anchors"],
+        "gt_boxes_with_multiple_matching_anchors": masks["gt_boxes_with_multiple_matching_anchors"]
       }
       return ret
 
