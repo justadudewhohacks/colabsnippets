@@ -33,7 +33,7 @@ class TrainFPN:
     self.drive_upload_checkpoints_folder_id = args['drive_upload_checkpoints_folder_id']
     self.image_sizes = args["image_sizes"]
     self.compile_optimizer_op = args["compile_optimizer_op"]
-    self.stage_loss_scales = args["stage_loss_scales"]
+    self.stage_object_loss_scales = args["stage_object_loss_scales"]
     image_augmentor = args["image_augmentor"]
     min_box_size_px = args['min_box_size_px']
 
@@ -64,7 +64,7 @@ class TrainFPN:
     print('augmentation_prob:', self.augmentation_prob)
     print('num_reduction_ops:', self.num_reduction_ops)
     print('no_object_scale:', self.no_object_scale)
-    print('stage_loss_scales:', self.stage_loss_scales)
+    print('stage_object_loss_scales:', self.stage_object_loss_scales)
     print('train samples:', len(train_data))
     print('image sizes:', self.image_sizes)
     print('---------------------------')
@@ -108,7 +108,7 @@ class TrainFPN:
           sess, self.batch_size, image_size, out_num_cells=out_num_cells,
           object_scale=self.object_scale, coord_scale=self.coord_scale,
           no_object_scale=self.no_object_scale, apply_scale_loss=tf.abs, compile_optimizer_op=self.compile_optimizer_op,
-          stage_loss_scales=self.stage_loss_scales)
+          stage_object_loss_scales=self.stage_object_loss_scales)
 
       sess.run(tf.global_variables_initializer())
 

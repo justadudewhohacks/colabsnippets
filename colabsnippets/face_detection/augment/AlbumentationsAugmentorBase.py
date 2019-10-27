@@ -14,6 +14,8 @@ class AlbumentationsAugmentorBase:
     for x, y, w, h in boxes:
       x, y = max(0, x), max(0, y)
       w, h = min(1.0 - x, w), min(1.0 - y, h)
+      if x > 1.0 or y > 1.0 or w < 0 or h < 0:
+        continue
       fixed_boxes.append((x, y, w, h))
     return fixed_boxes
 

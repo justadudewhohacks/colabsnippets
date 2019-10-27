@@ -244,7 +244,7 @@ class FPNBase(NeuralNetwork):
   def forward_train_factory(self, sess, batch_size, image_size, out_num_cells=20,
                             object_scale=1.0, coord_scale=1.0, no_object_scale=0.25, offsets_scale=None,
                             scales_scale=None, apply_scale_loss=lambda x: x, compile_optimizer_op=None,
-                            stage_loss_scales=None):
+                            stage_object_loss_scales=None):
     offsets_scale = coord_scale if offsets_scale is None else offsets_scale
     scales_scale = coord_scale if scales_scale is None else scales_scale
     X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
@@ -281,16 +281,23 @@ class FPNBase(NeuralNetwork):
       range(0, num_stages)]
 
     # TODO stage scale factors
-    stage_loss_scales = [1.0 for s in range(0, num_stages)] if stage_loss_scales is None else stage_loss_scales
-    if len(stage_loss_scales) != num_stages:
-      raise Exception("len(stage_scales)= {}, but num_stages is {}".format(len(stage_loss_scales), num_stages))
-    compute_weighted_losses = lambda loss_ops_by_stage, scale: [(scale * l * stage_loss_scales[stage_idx]) / batch_size
-                                                                for
-                                                                stage_idx, l in enumerate(loss_ops_by_stage)]
-    weighted_object_loss_ops_by_stage = compute_weighted_losses(object_loss_ops_by_stage, object_scale)
-    weighted_no_object_loss_ops_by_stage = compute_weighted_losses(no_object_loss_ops_by_stage, no_object_scale)
-    weighted_offset_loss_ops_by_stage = compute_weighted_losses(offset_loss_ops_by_stage, offsets_scale)
-    weighted_scales_loss_ops_by_stage = compute_weighted_losses(scales_loss_ops_by_stage, scales_scale)
+    stage_object_loss_scales = [1.0 for s in
+                                range(0, num_stages)] if stage_object_loss_scales is None else stage_object_loss_scales
+    if len(stage_object_loss_scales) != num_stages:
+      raise Exception(
+        "len(stage_object_loss_scales)= {}, but num_stages is {}".format(len(stage_object_loss_scales), num_stages))
+    compute_weighted_losses = lambda loss_ops_by_stage, scale, stage_loss_scales: [
+      (scale * l * stage_loss_scales[stage_idx]) / batch_size
+      for
+      stage_idx, l in enumerate(loss_ops_by_stage)]
+    weighted_object_loss_ops_by_stage = compute_weighted_losses(object_loss_ops_by_stage, object_scale,
+                                                                stage_object_loss_scales)
+    weighted_no_object_loss_ops_by_stage = compute_weighted_losses(no_object_loss_ops_by_stage, no_object_scale,
+                                                                   [1.0 for s in range(0, num_stages)])
+    weighted_offset_loss_ops_by_stage = compute_weighted_losses(offset_loss_ops_by_stage, offsets_scale,
+                                                                [1.0 for s in range(0, num_stages)])
+    weighted_scales_loss_ops_by_stage = compute_weighted_losses(scales_loss_ops_by_stage, scales_scale,
+                                                                [1.0 for s in range(0, num_stages)])
 
     object_loss_op = tf.add_n(weighted_object_loss_ops_by_stage)
     no_object_loss_op = tf.add_n(weighted_no_object_loss_ops_by_stage)
