@@ -8,6 +8,7 @@ class AlbumentationsAugmentorBase:
     self.albumentations_lib = albumentations_lib
     self.bbox_params = self.albumentations_lib.BboxParams(format='coco', label_fields=['labels'], min_area=0.0,
                                                           min_visibility=0.0)
+    self.log_augmentation_exception = False
 
   def _fix_rel_boxes(self, boxes):
     fixed_boxes = []
@@ -26,11 +27,16 @@ class AlbumentationsAugmentorBase:
     raise Exception("AlbumentationsAugmentorBase - _augment_abs_boxes not implemented")
 
   def augment(self, img, boxes=[], image_size=None):
-    boxes = fix_boxes([abs_bbox_coords(box, img.shape[0:2]) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]),
-                      1)
-    img, boxes = self._augment_abs_boxes(img, boxes, image_size)
-    boxes = [rel_bbox_coords(box, img.shape[0:2]) for box in boxes]
-    return img, boxes
+    try:
+      _boxes = fix_boxes([abs_bbox_coords(box, img.shape[0:2]) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]),
+                        1)
+      _img, _boxes = self._augment_abs_boxes(img, _boxes, image_size)
+      _boxes = [rel_bbox_coords(box, _img.shape[0:2]) for box in _boxes]
+      return _img, _boxes
+    except:
+      if self.log_augmentation_exception:
+        print("failed to augment")
+      return img, boxes
 
   def resize_and_to_square(self, img, boxes=[], image_size=None):
     boxes = fix_boxes([abs_bbox_coords(box, img.shape[0:2]) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]),
