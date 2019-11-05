@@ -13,7 +13,7 @@ boxes = json_boxes_to_array(load_json('./0_Parade_marchingband_1_8.json'))
 
 while True:
   abs_boxes = [abs_bbox_coords(rel_box, img.shape[0:2]) for rel_box in boxes]
-  out, out_boxes = crop(img, abs_boxes, crop_range=0, is_bbox_safe=True, min_box_target_size=32)
+  out, out_boxes = crop(img, abs_boxes, is_bbox_safe=False, max_cutoff=0.5, min_box_target_size=0)
 
   for x, y, w, h in out_boxes:
     cv2.rectangle(out, (x, y), (x + w, y + h), (255, 0, 0), 1)

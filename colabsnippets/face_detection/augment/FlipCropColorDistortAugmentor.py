@@ -39,13 +39,21 @@ class FlipCropColorDistortAugmentor(AlbumentationsAugmentorBase):
     self.prob_blur = 0.25
     self.prob_dropout = 0.25
 
+    self.debug = False
+
   def _augment_abs_boxes(self, img, boxes, resize):
     transforms = self.albumentations_lib.augmentations.transforms
     Compose = self.albumentations_lib.Compose
 
     if random.random() <= self.prob_crop:
-      img, boxes = crop(img, boxes, is_bbox_safe=self.crop_is_bbox_safe, max_cutoff=self.crop_max_cutoff, min_box_target_size=self.crop_min_box_target_size)
+      img, boxes = crop(img, boxes, is_bbox_safe=self.crop_is_bbox_safe, max_cutoff=self.crop_max_cutoff,
+                        min_box_target_size=self.crop_min_box_target_size)
+      if self.debug:
+        print('boxes after crop:', boxes)
       boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
+      if self.debug:
+        print('filtering with dimensions:', str(img.shape[0:2]))
+        print('boxes after filtering:', boxes)
 
     res = Compose([
       transforms.LongestMaxSize(p=1.0, max_size=resize),
