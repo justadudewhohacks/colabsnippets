@@ -36,7 +36,7 @@ class AlbumentationsAugmentorBase:
     except:
       if self.log_augmentation_exception:
         print("failed to augment")
-      return img, boxes
+      return self.resize_and_to_square(img, boxes=boxes, image_size=image_size)
 
   def resize_and_to_square(self, img, boxes=[], image_size=None):
     boxes = fix_boxes([abs_bbox_coords(box, img.shape[0:2]) for box in self._fix_rel_boxes(boxes)], max(img.shape[0:2]),
