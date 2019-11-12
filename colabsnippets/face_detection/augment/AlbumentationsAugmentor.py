@@ -3,15 +3,27 @@ import random
 import cv2
 
 from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .crop import crop
 
 
 class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
   def __init__(self, albumentations_lib):
     super().__init__(albumentations_lib)
 
+    self.prob_rotate = 0.5
+    self.prob_stretch = 0.25
     self.max_rotation_angle = 30
     self.max_stretch_x = 1.4
     self.max_stretch_y = 1.4
+
+    self.crop_min_box_target_size = 0.0
+    self.crop_max_cutoff = 0.5
+    self.crop_is_bbox_safe = False
+
+    self.prob_crop = 0.5
+    self.prob_flip = 0.5
+    self.prob_gray = 0.2
+
     self.gamma_limit = (80, 120)
     self.hue_shift_limit = 20
     self.sat_shift_limit = 30
@@ -25,16 +37,14 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     self.max_holes = 16
     self.max_hole_rel_size = 0.05
 
-    self.prob_rotate = 0.5
-    self.prob_flip = 0.5
-    self.prob_stretch = 0.25
     self.prob_gamma = 0.5
     self.prob_hsv = 0.5
     self.prob_rgb = 0.5
     self.prob_brightness_contrast = 0.5
-    self.prob_gray = 0.2
     self.prob_blur = 0.25
     self.prob_dropout = 0.25
+
+    self.debug = False
 
   # assuming image is square with (size, size)
   def _get_stretch_shape(self, size):
@@ -50,6 +60,16 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
   def _augment_abs_boxes(self, img, boxes, resize):
     transforms = self.albumentations_lib.augmentations.transforms
     Compose = self.albumentations_lib.Compose
+
+    if random.random() <= self.prob_crop:
+      img, boxes = crop(img, boxes, is_bbox_safe=self.crop_is_bbox_safe, max_cutoff=self.crop_max_cutoff,
+                        min_box_target_size=self.crop_min_box_target_size)
+      if self.debug:
+        print('boxes after crop:', boxes)
+      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
+      if self.debug:
+        print('filtering with dimensions:', str(img.shape[0:2]))
+        print('boxes after filtering:', boxes)
 
     aug_rot = Compose([
       # pre downscale

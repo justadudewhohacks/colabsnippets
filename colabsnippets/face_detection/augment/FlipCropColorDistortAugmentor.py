@@ -35,7 +35,6 @@ class FlipCropColorDistortAugmentor(AlbumentationsAugmentorBase):
     self.prob_hsv = 0.5
     self.prob_rgb = 0.5
     self.prob_brightness_contrast = 0.5
-    self.prob_gray = 0.2
     self.prob_blur = 0.25
     self.prob_dropout = 0.25
 

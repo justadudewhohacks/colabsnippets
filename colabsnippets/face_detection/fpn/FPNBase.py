@@ -122,7 +122,8 @@ class FPNBase(NeuralNetwork):
             box /= image_size
 
           if with_scores:
-            box = box.tolist() + scores[i]
+            box = [v for v in box]
+            box.append(scores[i])
 
           batch_boxes_by_stage[s][b].append(box)
     return batch_boxes_by_stage
@@ -236,12 +237,12 @@ class FPNBase(NeuralNetwork):
     X = tf.placeholder(tf.float32, [batch_size, image_size, image_size, 3])
     ops_by_stage = self.forward_and_get_ops_by_stage(X, batch_size, image_size, out_num_cells=out_num_cells)
 
-    def forward(batch_x, score_thresh=0.5):
+    def forward(batch_x, score_thresh=0.5, with_scores=False):
       batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, = sess.run(
         [ops_by_stage["offsets_ops_by_stage"], ops_by_stage["scales_ops_by_stage"],
          ops_by_stage["scores_ops_by_stage"]], feed_dict={X: batch_x})
       return self.extract_boxes(batch_offsets_by_stage, batch_scales_by_stage, batch_scores_by_stage, score_thresh,
-                                image_size, relative_coords=True)
+                                image_size, relative_coords=True, with_scores=with_scores)
 
     return forward
 
@@ -315,7 +316,7 @@ class FPNBase(NeuralNetwork):
 
     # train_op = tf.train.AdamOptimizer(learning_rate=learning_rate, name='Adam_' + str(image_size)).minimize(loss_op)
 
-    def forward_train(batch_x, batch_gt_boxes, score_thresh=0.5):
+    def forward_train(batch_x, batch_gt_boxes, score_thresh=0.5, with_scores=False):
       masks = self.create_gt_masks(batch_gt_boxes, image_size)
 
       feed_dict = {X: batch_x}
@@ -336,7 +337,7 @@ class FPNBase(NeuralNetwork):
 
       batch_pred_boxes_by_stage = self.extract_boxes_by_stage(batch_offsets_by_stage, batch_scales_by_stage,
                                                               batch_scores_by_stage, score_thresh, image_size,
-                                                              relative_coords=True)
+                                                              relative_coords=True, with_scores=with_scores)
 
       ret = {
         "loss": loss,
