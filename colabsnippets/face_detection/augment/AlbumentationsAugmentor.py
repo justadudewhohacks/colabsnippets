@@ -112,12 +112,22 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
                                          max_scale=self.anchor_based_sampling_max_scale)
       boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
 
+    if self.debug:
+      print('applying transformations')
+      print(boxes)
+    stretch_x, stretch_y = self._get_stretch_shape(resize)
+    res = Compose([
+      transforms.HorizontalFlip(p=self.prob_flip),
+      transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch)
+    ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
+    img, boxes = res['image'], res['bboxes']
+
     # crop to max output size
     if self.debug:
       print('applying crop to max output size')
     im_h, im_w = img.shape[0:2]
     rx, ry, rw, rh = min_bbox(rel_bbox_coords(abs_box, [im_h, im_w]) for abs_box in boxes)
-    rcx, rcy = [(rx + (rw / 2)) * im_w, (ry + (rh / 2)) * im_h]
+    rcx, rcy = [int((rx + (rw / 2)) * im_w), int((ry + (rh / 2)) * im_h)]
     crop_x0 = int(max(0, rcx - (resize / 2)))
     crop_y0 = int(max(0, rcy - (resize / 2)))
     crop_x1 = int(min(im_w, rcx + (resize / 2)))
@@ -128,16 +138,6 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     if self.debug:
       print('applying random_pad_to_square')
     img, boxes = random_pad_to_square(img, boxes, resize)
-
-    if self.debug:
-      print('applying transformations')
-      print(boxes)
-    stretch_x, stretch_y = self._get_stretch_shape(resize)
-    res = Compose([
-      transforms.HorizontalFlip(p=self.prob_flip),
-      transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch)
-    ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
-    img, boxes = res['image'], res['bboxes']
 
     if self.debug:
       print('applying color distortion')
