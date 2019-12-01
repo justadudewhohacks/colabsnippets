@@ -2,6 +2,9 @@ import random
 
 import cv2
 
+from colabsnippets.face_detection.augment.anchor_based_sampling import anchor_based_sampling
+from colabsnippets.face_detection.augment.random_pad_to_square import random_pad_to_square
+from colabsnippets.utils import rel_bbox_coords, min_bbox
 from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
 from .crop import crop
 
@@ -19,6 +22,10 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     self.crop_min_box_target_size = 0.0
     self.crop_max_cutoff = 0.5
     self.crop_is_bbox_safe = False
+
+    self.prob_anchor_based_sampling = 0.5
+    self.anchor_based_sampling_anchors = [16, 32, 64, 128, 256]
+    self.anchor_based_sampling_max_scale = 4.0
 
     self.prob_crop = 0.5
     self.prob_flip = 0.5
@@ -62,6 +69,8 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     Compose = self.albumentations_lib.Compose
 
     if random.random() <= self.prob_crop:
+      if self.debug:
+        print('applying crop')
       img, boxes = crop(img, boxes, is_bbox_safe=self.crop_is_bbox_safe, max_cutoff=self.crop_max_cutoff,
                         min_box_target_size=self.crop_min_box_target_size)
       if self.debug:
@@ -71,30 +80,67 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
         print('filtering with dimensions:', str(img.shape[0:2]))
         print('boxes after filtering:', boxes)
 
-    aug_rot = Compose([
-      # pre downscale
-      transforms.LongestMaxSize(p=1.0, max_size=1.5 * resize),
-      transforms.PadIfNeeded(p=1.0, min_height=int(1.5 * resize), min_width=int(1.5 * resize),
-                             border_mode=cv2.BORDER_CONSTANT),
-      transforms.Rotate(p=self.prob_rotate, limit=(-self.max_rotation_angle, self.max_rotation_angle),
-                        border_mode=cv2.BORDER_CONSTANT)
+    # pre downscale
+    if self.debug:
+      print('applying pre downscale')
+    pre_downscale_size = 1.5 * resize
+    aug_pre_downscale = Compose([
+      transforms.LongestMaxSize(p=1.0, max_size=pre_downscale_size)
     ], self.bbox_params)
-    res = aug_rot(image=img, bboxes=boxes, labels=['' for _ in boxes])
+    if max(img.shape[0:2]) > pre_downscale_size:
+      res = aug_pre_downscale(image=img, bboxes=boxes, labels=['' for _ in boxes])
+      img, boxes = res['image'], res['bboxes']
 
-    res = Compose([
-      transforms.RandomSizedBBoxSafeCrop(res['image'].shape[0], res['image'].shape[1], p=1.0),
-      transforms.LongestMaxSize(p=1.0, max_size=resize)
-    ], self.bbox_params)(**res)
+    if random.random() < self.prob_rotate:
+      if self.debug:
+        print('applying rotation')
+      aug_rot = Compose([
+        # pad borders to avoid cutting out parts of image when rotating it
+        transforms.PadIfNeeded(p=1.0, min_height=int(pre_downscale_size), min_width=int(pre_downscale_size),
+                               border_mode=cv2.BORDER_CONSTANT),
+        transforms.Rotate(p=1.0, limit=(-self.max_rotation_angle, self.max_rotation_angle),
+                          border_mode=cv2.BORDER_CONSTANT)
+      ], self.bbox_params)
+      res = aug_rot(image=img, bboxes=boxes, labels=['' for _ in boxes])
+      img, boxes = res['image'], res['bboxes']
+      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
 
+    if random.random() <= self.prob_anchor_based_sampling and self.anchor_based_sampling_anchors is not None:
+      if self.debug:
+        print('applying anchor_based_sampling')
+      img, boxes = anchor_based_sampling(img, boxes, self.anchor_based_sampling_anchors,
+                                         max_scale=self.anchor_based_sampling_max_scale)
+      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
+
+    # crop to max output size
+    if self.debug:
+      print('applying crop to max output size')
+    im_h, im_w = img.shape[0:2]
+    rx, ry, rw, rh = min_bbox(rel_bbox_coords(abs_box, [im_h, im_w]) for abs_box in boxes)
+    rcx, rcy = [(rx + (rw / 2)) * im_w, (ry + (rh / 2)) * im_h]
+    crop_x0 = int(max(0, rcx - (resize / 2)))
+    crop_y0 = int(max(0, rcy - (resize / 2)))
+    crop_x1 = int(min(im_w, rcx + (resize / 2)))
+    crop_y1 = int(min(im_h, rcy + (resize / 2)))
+    img = img[crop_y0:crop_y1, crop_x0:crop_x1, :]
+    boxes = self._fix_abs_boxes([(x - crop_x0, y - crop_y0, w, h) for x, y, w, h in boxes], img.shape[0:2])
+
+    if self.debug:
+      print('applying random_pad_to_square')
+    img, boxes = random_pad_to_square(img, boxes, resize)
+
+    if self.debug:
+      print('applying transformations')
+      print(boxes)
     stretch_x, stretch_y = self._get_stretch_shape(resize)
     res = Compose([
       transforms.HorizontalFlip(p=self.prob_flip),
-      transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch),
-      transforms.PadIfNeeded(p=1.0, min_height=resize, min_width=resize, border_mode=cv2.BORDER_CONSTANT)
-    ], self.bbox_params)(**res)
-
+      transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch)
+    ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
     img, boxes = res['image'], res['bboxes']
 
+    if self.debug:
+      print('applying color distortion')
     # TODO: shear, rescale blur?
     transformations = [
       transforms.ToGray(p=self.prob_gray),
