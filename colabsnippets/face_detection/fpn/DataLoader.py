@@ -37,7 +37,7 @@ def resolve_image_path(data):
 
 class DataLoader(BatchLoader):
   def __init__(self, data, image_augmentor=None, start_epoch=None, is_test=False, min_box_size_px=8,
-               augmentation_prob=0.0):
+               augmentation_prob=0.0, extract_data_labels_fallback=None):
     self.image_augmentor = image_augmentor
     self.augmentation_prob = augmentation_prob
     self.min_box_size_px = min_box_size_px
@@ -93,6 +93,14 @@ class DataLoader(BatchLoader):
         return mafa_test_boxes_by_file[data['file']]
       if db == 'UFDD_val':
         return ufdd_val_boxes_by_file[data['file']]
+      if db == 'celeba_face_clusters':
+        boxes_file = img_file.replace('.jpg', '.json')
+        boxes_dir = 'generated-boxes'
+        boxes_path = "./data/{}/{}/{}".format(db, boxes_dir, boxes_file)
+        boxes = load_json(boxes_path)
+        return boxes
+      if extract_data_labels_fallback is not None:
+        return extract_data_labels_fallback(data)
       raise Exception("extract_data_labels - unknown db '{}'".format(db))
 
     BatchLoader.__init__(

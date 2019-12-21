@@ -122,22 +122,10 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
     img, boxes = res['image'], res['bboxes']
 
-    # crop to max output size
+    # crop to max output size and pad
     if self.debug:
-      print('applying crop to max output size')
-    im_h, im_w = img.shape[0:2]
-    rx, ry, rw, rh = min_bbox(rel_bbox_coords(abs_box, [im_h, im_w]) for abs_box in boxes)
-    rcx, rcy = [int((rx + (rw / 2)) * im_w), int((ry + (rh / 2)) * im_h)]
-    crop_x0 = int(max(0, rcx - (resize / 2)))
-    crop_y0 = int(max(0, rcy - (resize / 2)))
-    crop_x1 = int(min(im_w, rcx + (resize / 2)))
-    crop_y1 = int(min(im_h, rcy + (resize / 2)))
-    img = img[crop_y0:crop_y1, crop_x0:crop_x1, :]
-    boxes = self._fix_abs_boxes([(x - crop_x0, y - crop_y0, w, h) for x, y, w, h in boxes], img.shape[0:2])
-
-    if self.debug:
-      print('applying random_pad_to_square')
-    img, boxes = random_pad_to_square(img, boxes, resize)
+      print('applying crop_and_random_pad_to_square')
+    img, boxes = self._crop_and_random_pad_to_square(img, boxes, resize)
 
     if self.debug:
       print('applying color distortion')
