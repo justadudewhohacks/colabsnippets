@@ -4,6 +4,14 @@ import types
 from ...BatchLoader import BatchLoader
 from ...utils import load_json, load_json_if_exists, fix_boxes, min_bbox_from_pts
 
+'''
+--------------------------------------------------------------------------------
+
+Data Loader
+
+--------------------------------------------------------------------------------
+'''
+
 
 def json_boxes_to_array(boxes):
   out_boxes = []
@@ -27,14 +35,12 @@ def resolve_image_path(data):
   return img_path
 
 
-class DataLoader(BatchLoader):
-  def __init__(self, data_or_data_getter, image_augmentor=None, inputs_to_square=True, start_epoch=None, is_test=False,
-               min_box_size_px=8,
+class DataLoaderV1(BatchLoader):
+  def __init__(self, data, image_augmentor=None, start_epoch=None, is_test=False, min_box_size_px=8,
                augmentation_prob=0.0, extract_data_labels_fallback=None):
     self.image_augmentor = image_augmentor
     self.augmentation_prob = augmentation_prob
     self.min_box_size_px = min_box_size_px
-    self.inputs_to_square = inputs_to_square
 
     celeba_landmarks_by_file = load_json_if_exists('./data/celeba/landmarks.json')
     face_detection_scrapeddb_boxes_by_file = load_json_if_exists('./data/face_detection_scrapeddb/boxes.json')
@@ -46,10 +52,6 @@ class DataLoader(BatchLoader):
     mafa_train_boxes_by_file = load_json_if_exists('./data/MAFA_train/boxes.json')
     mafa_test_boxes_by_file = load_json_if_exists('./data/MAFA_test/boxes.json')
     ufdd_val_boxes_by_file = load_json_if_exists('./data/UFDD_val/boxes.json')
-    face_detection_scrapeddb_landmarks_by_file = load_json_if_exists('./data/face_detection_scrapeddb/landmarks.json')
-    ibug_all_landmarks_by_file = load_json_if_exists('./data/ibug/landmarks.json')
-    mafa_train_landmarks_by_file = load_json_if_exists('./data/MAFA_train/landmarks.json')
-    ufdd_val_landmarks_by_file = load_json_if_exists('./data/UFDD_val/landmarks.json')
 
     def extract_data_labels(data):
       db = data['db']
@@ -71,46 +73,39 @@ class DataLoader(BatchLoader):
         boxes_path = "./data/{}/{}/{}".format(db, boxes_dir, boxes_file)
         boxes = load_json(boxes_path)
         if db == 'WIDER' or db == 'FDDB':
-          boxes = json_boxes_to_array(boxes)
-        landmarks = []
-        if db == 'WIDER':
-          landmarks_file = img_file.replace('.jpg', '.json')
-          landmarks_dir = "landmarks-shard{}".format(data['shard']) if 'shard' in data else 'landmarks'
-          landmarks_path = "./data/{}/{}/{}".format(db, landmarks_dir, landmarks_file)
-          landmarks = load_json_if_exists(landmarks_path)
-          landmarks = landmarks if landmarks is not None else []
-        return boxes, landmarks
+          return json_boxes_to_array(boxes)
+        return boxes
       if db == 'face_detection_scrapeddb':
-        return face_detection_scrapeddb_boxes_by_file[img_file], face_detection_scrapeddb_landmarks_by_file[img_file]
+        return face_detection_scrapeddb_boxes_by_file[data['file']]
       if db == 'helen':
-        return helen_boxes_by_file[img_file], ibug_all_landmarks_by_file[img_file]
+        return helen_boxes_by_file[data['file']]
       if db == 'ibug':
-        return ibug_boxes_by_file[img_file], ibug_all_landmarks_by_file[img_file]
+        return ibug_boxes_by_file[data['file']]
       if db == 'afw':
-        return afw_boxes_by_file[img_file], ibug_all_landmarks_by_file[img_file]
+        return afw_boxes_by_file[data['file']]
       if db == 'lfpw':
-        return lfpw_boxes_by_file[img_file], ibug_all_landmarks_by_file[img_file]
+        return lfpw_boxes_by_file[data['file']]
       if db == '300w':
-        return thw_boxes_by_file[img_file], ibug_all_landmarks_by_file[img_file]
+        return thw_boxes_by_file[data['file']]
       if db == 'MAFA_train':
-        return mafa_train_boxes_by_file[img_file], mafa_train_landmarks_by_file[img_file]
+        return mafa_train_boxes_by_file[data['file']]
       if db == 'MAFA_test':
-        return mafa_test_boxes_by_file[img_file], []
+        return mafa_test_boxes_by_file[data['file']]
       if db == 'UFDD_val':
-        return ufdd_val_boxes_by_file[img_file], ufdd_val_landmarks_by_file[img_file]
+        return ufdd_val_boxes_by_file[data['file']]
       if db == 'celeba_face_clusters':
         boxes_file = img_file.replace('.jpg', '.json')
         boxes_dir = 'generated-boxes'
         boxes_path = "./data/{}/{}/{}".format(db, boxes_dir, boxes_file)
         boxes = load_json(boxes_path)
-        return boxes, []
+        return boxes
       if extract_data_labels_fallback is not None:
         return extract_data_labels_fallback(data)
       raise Exception("extract_data_labels - unknown db '{}'".format(db))
 
     BatchLoader.__init__(
       self,
-      data_or_data_getter if type(data_or_data_getter) is types.FunctionType else lambda: data_or_data_getter,
+      data if type(data) is types.FunctionType else lambda: data,
       resolve_image_path,
       extract_data_labels,
       start_epoch=start_epoch,
@@ -121,17 +116,13 @@ class DataLoader(BatchLoader):
     batch_x, batch_y = [], []
     for data in datas:
       image = self.load_image(data)
-      boxes, landmarks = self.extract_data_labels(data)
+      boxes = self.extract_data_labels(data)
       if random.random() < self.augmentation_prob:
-        image, boxes, landmarks = self.image_augmentor.augment(image, boxes=boxes, landmarks=landmarks,
-                                                               image_size=image_size)
-      elif self.inputs_to_square:
-        image, boxes, landmarks = self.image_augmentor.resize_and_to_square(image, boxes=boxes, landmarks=landmarks,
-                                                                            image_size=image_size)
+        image, boxes = self.image_augmentor.augment(image, boxes=boxes, image_size=image_size)
       else:
-        pass
+        image, boxes = self.image_augmentor.resize_and_to_square(image, boxes=boxes, image_size=image_size)
       batch_x.append(image)
-      batch_y.append([fix_boxes(boxes, image_size, self.min_box_size_px), landmarks])
+      batch_y.append(fix_boxes(boxes, image_size, self.min_box_size_px))
 
     return batch_x, batch_y
 
@@ -141,11 +132,10 @@ class DataLoader(BatchLoader):
       next_batch = BatchLoader.next_batch(self, 1, image_size=image_size)
       if next_batch is None:
         return None
-      image, labels = next_batch
-      image, labels = image[0], labels[0]
-      boxes, landmarks = labels
+      image, boxes = next_batch
+      image, boxes = image[0], boxes[0]
       boxes = fix_boxes(boxes, image_size, self.min_box_size_px)
       if len(boxes) > 0:
         batch_x.append(image)
-        batch_y.append([boxes, landmarks])
+        batch_y.append(boxes)
     return batch_x, batch_y

@@ -1,12 +1,61 @@
+import math
 import random
 
 import cv2
 
-from colabsnippets.face_detection.augment.anchor_based_sampling import anchor_based_sampling
-from colabsnippets.face_detection.augment.random_pad_to_square import random_pad_to_square
-from colabsnippets.utils import rel_bbox_coords, min_bbox
-from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase, resize_to_max
+from .anchor_based_sampling import anchor_based_sampling
 from .crop import crop
+from .crop_and_random_pad_to_square import crop_and_random_pad_to_square
+from .resize_by_ratio import resize_by_ratio
+
+
+def landmarks_to_keypoints(all_landmarks):
+  keypoints = []
+  for landmarks in all_landmarks:
+    for x, y in landmarks:
+      keypoints.append([x, y])
+  return keypoints
+
+
+def keypoints_to_landmarks(all_keypoints):
+  if len(all_keypoints) % 5 != 0:
+    raise Exception(
+      'keypoints_to_landmarks - expected length of all_keypoints to be a multiple of 5, but have length: ' + str(
+        len(all_keypoints)))
+  num_landmarks = int(len(all_keypoints) / 5)
+  return [[keypoint for keypoint in all_keypoints[i * 5:i * 5 + 5]] for i in range(0, num_landmarks)]
+
+
+def pack_abs_boxes_and_abs_landmarks(abs_boxes, abs_landmarks):
+  keypoints = []
+  for x0, y0, w, h in abs_boxes:
+    x1, y1 = x0 + w, y0 + h
+    for corner in [(x0, y0), (x1, y1), (x0, y1), (x1, y0)]:
+      keypoints.append(corner)
+  for kp in landmarks_to_keypoints(abs_landmarks):
+    keypoints.append(kp)
+  return keypoints
+
+
+def unpack_abs_boxes_and_abs_landmarks(keypoints, num_boxes, num_landmarks):
+  box_keypoints = keypoints[0:4 * num_boxes]
+  landmark_keypoints = keypoints[4 * num_boxes:]
+
+  if len(keypoints) != (num_boxes * 4 + num_landmarks * 5):
+    raise Exception("unpack_abs_boxes_and_abs_landmarks - mismatch between number of keypoints (" + str(len(keypoints))
+                    + ") and num_boxes (" + str(num_boxes) + ") and num_landmarks (" + str(num_landmarks) + ")")
+
+  abs_boxes = []
+  for i in range(0, num_boxes):
+    xmin, ymin, xmax, ymax = math.inf, math.inf, 0, 0
+    corners = box_keypoints[4 * i:4 * i + 4]
+    for x, y in corners:
+      xmin, ymin = min(x, xmin), min(y, ymin)
+      xmax, ymax = max(x, xmax), max(y, ymax)
+    abs_boxes.append([xmin, ymin, xmax - xmin, ymax - ymin])
+  abs_landmarks = keypoints_to_landmarks(landmark_keypoints)
+  return abs_boxes, abs_landmarks
 
 
 class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
@@ -51,6 +100,7 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
     self.prob_blur = 0.25
     self.prob_dropout = 0.25
 
+    self.with_pre_downscale = True
     self.debug = False
 
   # assuming image is square with (size, size)
@@ -64,98 +114,86 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
 
     return (size, down_scaled_dim) if is_stretch_x else (down_scaled_dim, size)
 
-  def _augment_abs_boxes(self, img, boxes, resize):
-    transforms = self.albumentations_lib.augmentations.transforms
-    Compose = self.albumentations_lib.Compose
-
+  def _augment_abs_boxes(self, img, boxes, landmarks, resize):
     if random.random() <= self.prob_crop:
       if self.debug:
         print('applying crop')
-      img, boxes = crop(img, boxes, is_bbox_safe=self.crop_is_bbox_safe, max_cutoff=self.crop_max_cutoff,
-                        min_box_target_size=self.crop_min_box_target_size)
+      img, boxes, landmarks = crop(img, boxes, landmarks, is_bbox_safe=self.crop_is_bbox_safe,
+                                   min_box_target_size=self.crop_min_box_target_size)
       if self.debug:
         print('boxes after crop:', boxes)
-      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
-      if self.debug:
-        print('filtering with dimensions:', str(img.shape[0:2]))
-        print('boxes after filtering:', boxes)
 
     # pre downscale
-    if self.debug:
-      print('applying pre downscale')
-    pre_downscale_size = 1.5 * resize
-    aug_pre_downscale = Compose([
-      transforms.LongestMaxSize(p=1.0, max_size=pre_downscale_size)
-    ], self.bbox_params)
-    if max(img.shape[0:2]) > pre_downscale_size:
-      res = aug_pre_downscale(image=img, bboxes=boxes, labels=['' for _ in boxes])
-      img, boxes = res['image'], res['bboxes']
+    if self.with_pre_downscale:
+      if self.debug:
+        print('applying pre downscale')
+      pre_downscale_size = 1.5 * resize
+      img, boxes, landmarks = resize_to_max(img, boxes, landmarks, pre_downscale_size)
 
     if random.random() < self.prob_rotate:
       if self.debug:
         print('applying rotation')
-      aug_rot = Compose([
+      square_size = max(img.shape[0], img.shape[1])
+      aug_rot = self.albumentations_lib.Compose([
         # pad borders to avoid cutting out parts of image when rotating it
-        transforms.PadIfNeeded(p=1.0, min_height=int(pre_downscale_size), min_width=int(pre_downscale_size),
-                               border_mode=cv2.BORDER_CONSTANT),
-        transforms.Rotate(p=1.0, limit=(-self.max_rotation_angle, self.max_rotation_angle),
-                          border_mode=cv2.BORDER_CONSTANT)
-      ], self.bbox_params)
-      res = aug_rot(image=img, bboxes=boxes, labels=['' for _ in boxes])
-      img, boxes = res['image'], res['bboxes']
-      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
+        self.albumentations_lib.augmentations.transforms.PadIfNeeded(p=1.0, min_height=int(square_size),
+                                                                     min_width=int(square_size),
+                                                                     border_mode=cv2.BORDER_CONSTANT),
+        self.albumentations_lib.augmentations.transforms.Rotate(p=1.0, limit=(
+          -self.max_rotation_angle, self.max_rotation_angle),
+                                                                border_mode=cv2.BORDER_CONSTANT)
+      ], keypoint_params=self.keypoint_params)
+
+      res = aug_rot(image=img, keypoints=pack_abs_boxes_and_abs_landmarks(boxes, landmarks))
+      img = res['image']
+      boxes, landmarks = unpack_abs_boxes_and_abs_landmarks(res['keypoints'], len(boxes), len(landmarks))
 
     if random.random() <= self.prob_anchor_based_sampling and self.anchor_based_sampling_anchors is not None:
       if self.debug:
         print('applying anchor_based_sampling')
-      img, boxes = anchor_based_sampling(img, boxes, self.anchor_based_sampling_anchors,
-                                         max_scale=self.anchor_based_sampling_max_scale)
-      boxes = self._fix_abs_boxes(boxes, img.shape[0:2])
+      img, boxes, landmarks = anchor_based_sampling(img, boxes, landmarks, self.anchor_based_sampling_anchors,
+                                                    max_scale=self.anchor_based_sampling_max_scale)
 
     if self.debug:
       print('applying transformations')
       print(boxes)
-    stretch_x, stretch_y = self._get_stretch_shape(resize)
-    res = Compose([
-      transforms.HorizontalFlip(p=self.prob_flip),
-      transforms.Resize(stretch_y, stretch_x, p=self.prob_stretch)
-    ], self.bbox_params)(image=img, bboxes=boxes, labels=['' for _ in boxes])
-    img, boxes = res['image'], res['bboxes']
+    res = self.albumentations_lib.Compose([
+      self.albumentations_lib.augmentations.transforms.HorizontalFlip(p=self.prob_flip)
+    ], keypoint_params=self.keypoint_params)(image=img, keypoints=pack_abs_boxes_and_abs_landmarks(boxes, landmarks))
+    img = res['image']
+    boxes, landmarks = unpack_abs_boxes_and_abs_landmarks(res['keypoints'], len(boxes), len(landmarks))
+
+    if random.random() <= self.prob_stretch:
+      stretch_x, stretch_y = self._get_stretch_shape(resize)
+      img, boxes, landmarks = resize_by_ratio(img, boxes, landmarks, stretch_x / resize, stretch_y / resize)
 
     # crop to max output size and pad
     if self.debug:
       print('applying crop_and_random_pad_to_square')
-    img, boxes = self._crop_and_random_pad_to_square(img, boxes, resize)
+    img, boxes, landmarks = crop_and_random_pad_to_square(img, boxes, landmarks, resize)
 
     if self.debug:
       print('applying color distortion')
-    # TODO: shear, rescale blur?
+
     transformations = [
-      transforms.ToGray(p=self.prob_gray),
-      transforms.RandomGamma(p=self.prob_gamma, gamma_limit=self.gamma_limit),
-      transforms.HueSaturationValue(p=self.prob_hsv, hue_shift_limit=self.hue_shift_limit,
-                                    sat_shift_limit=self.sat_shift_limit, val_shift_limit=self.val_shift_limit),
-      transforms.RGBShift(p=self.prob_rgb, r_shift_limit=self.r_shift_limit, g_shift_limit=self.g_shift_limit,
-                          b_shift_limit=self.b_shift_limit),
-      transforms.RandomBrightnessContrast(p=self.prob_brightness_contrast, brightness_limit=self.brightness_limit,
-                                          contrast_limit=self.contrast_limit),
-      transforms.Blur(p=self.prob_blur, blur_limit=int((self.blur_multiplier * resize) / 100)),
-      transforms.CoarseDropout(p=self.prob_dropout, max_holes=self.max_holes,
-                               max_height=int(self.max_hole_rel_size * resize),
-                               max_width=int(self.max_hole_rel_size * resize), fill_value=random.randint(0, 255))
+      self.albumentations_lib.augmentations.transforms.ToGray(p=self.prob_gray),
+      self.albumentations_lib.augmentations.transforms.RandomGamma(p=self.prob_gamma, gamma_limit=self.gamma_limit),
+      self.albumentations_lib.augmentations.transforms.HueSaturationValue(p=self.prob_hsv,
+                                                                          hue_shift_limit=self.hue_shift_limit,
+                                                                          sat_shift_limit=self.sat_shift_limit,
+                                                                          val_shift_limit=self.val_shift_limit),
+      self.albumentations_lib.augmentations.transforms.RGBShift(p=self.prob_rgb, r_shift_limit=self.r_shift_limit,
+                                                                g_shift_limit=self.g_shift_limit,
+                                                                b_shift_limit=self.b_shift_limit),
+      self.albumentations_lib.augmentations.transforms.RandomBrightnessContrast(p=self.prob_brightness_contrast,
+                                                                                brightness_limit=self.brightness_limit,
+                                                                                contrast_limit=self.contrast_limit),
+      self.albumentations_lib.augmentations.transforms.Blur(p=self.prob_blur,
+                                                            blur_limit=int((self.blur_multiplier * resize) / 100)),
+      self.albumentations_lib.augmentations.transforms.CoarseDropout(p=self.prob_dropout, max_holes=self.max_holes,
+                                                                     max_height=int(self.max_hole_rel_size * resize),
+                                                                     max_width=int(self.max_hole_rel_size * resize),
+                                                                     fill_value=random.randint(0, 255))
     ]
-    img = Compose(transformations)(image=img)['image']
-    # CUTOUT
-    # img = transforms.Cutout(p = 1.0, num_holes=8, max_h_size=8, max_w_size=8).apply(img)
-
-    # DISTORTIONS
-    # TODO: a bit slow
-    # img = transforms.OpticalDistortion(p = 1.0, distort_limit=0.05, shift_limit=0.05).apply(img)
-    # TODO GridDistortion?
-    # img = transforms.GridDistortion(p = 1.0, num_steps=5, distort_limit=0.3).apply(img)
-    # TODO: very slow
-    # img = transforms.ElasticTransform(p = 1.0, alpha=1, sigma=50, alpha_affine=50).apply(img)
-    # TODO: module 'albumentations.augmentations.transforms' has no attribute 'RandomGridShuffle'
-    # img = transforms.RandomGridShuffle(p = 1.0, grid=(3, 3)).apply(img)
-
-    return img, boxes
+    img = self.albumentations_lib.Compose(transformations)(image=img)['image']
+    return img, boxes, landmarks

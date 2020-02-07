@@ -2,11 +2,11 @@ import random
 
 import cv2
 
-from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase
+from .AlbumentationsAugmentorBaseV1 import AlbumentationsAugmentorBaseV1
 from .crop import crop
 
 
-class FlipCropColorDistortAugmentor(AlbumentationsAugmentorBase):
+class FlipCropColorDistortAugmentor(AlbumentationsAugmentorBaseV1):
   def __init__(self, albumentations_lib):
     super().__init__(albumentations_lib)
 
