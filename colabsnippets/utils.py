@@ -104,6 +104,16 @@ def rel_bbox_coords(bbox, hw):
   return [min_x / width, min_y / height, max_x_or_w / width, max_y_or_h / height]
 
 
+def abs_landmarks_coords(landmarks, hw):
+  height, width = hw[:2]
+  return [(x * width, y * height) for x, y in landmarks]
+
+
+def rel_landmarks_coords(landmarks, hw):
+  height, width = hw[:2]
+  return [(x / width, y / height) for x, y in landmarks]
+
+
 def filter_abs_boxes(abs_boxes, min_box_size_px=0, max_box_size_px=Inf):
   filtered_boxes = []
   for box in abs_boxes:

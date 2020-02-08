@@ -114,12 +114,21 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
 
     return (size, down_scaled_dim) if is_stretch_x else (down_scaled_dim, size)
 
-  def _augment_abs_boxes(self, img, boxes, landmarks, resize):
+  def _augment_abs_boxes(self, img, boxes, landmarks, resize, return_augmentation_history=False):
+    augmentation_history = {
+      "augmentations": []
+    }
+    if return_augmentation_history:
+      augmentation_history['inputs'] = [img, boxes, landmarks]
+
     if random.random() <= self.prob_crop:
       if self.debug:
         print('applying crop')
       img, boxes, landmarks = crop(img, boxes, landmarks, is_bbox_safe=self.crop_is_bbox_safe,
                                    min_box_target_size=self.crop_min_box_target_size)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('crop')
+        augmentation_history['crop'] = [img, boxes, landmarks]
       if self.debug:
         print('boxes after crop:', boxes)
 
@@ -129,6 +138,9 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
         print('applying pre downscale')
       pre_downscale_size = 1.5 * resize
       img, boxes, landmarks = resize_to_max(img, boxes, landmarks, pre_downscale_size)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('pre_downscale')
+        augmentation_history['pre_downscale'] = [img, boxes, landmarks]
 
     if random.random() < self.prob_rotate:
       if self.debug:
@@ -147,30 +159,46 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
       res = aug_rot(image=img, keypoints=pack_abs_boxes_and_abs_landmarks(boxes, landmarks))
       img = res['image']
       boxes, landmarks = unpack_abs_boxes_and_abs_landmarks(res['keypoints'], len(boxes), len(landmarks))
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('rotate')
+        augmentation_history['rotate'] = [img, boxes, landmarks]
 
     if random.random() <= self.prob_anchor_based_sampling and self.anchor_based_sampling_anchors is not None:
       if self.debug:
         print('applying anchor_based_sampling')
       img, boxes, landmarks = anchor_based_sampling(img, boxes, landmarks, self.anchor_based_sampling_anchors,
                                                     max_scale=self.anchor_based_sampling_max_scale)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('anchor_based_sampling')
+        augmentation_history['anchor_based_sampling'] = [img, boxes, landmarks]
 
-    if self.debug:
-      print('applying transformations')
-      print(boxes)
-    res = self.albumentations_lib.Compose([
-      self.albumentations_lib.augmentations.transforms.HorizontalFlip(p=self.prob_flip)
-    ], keypoint_params=self.keypoint_params)(image=img, keypoints=pack_abs_boxes_and_abs_landmarks(boxes, landmarks))
-    img = res['image']
-    boxes, landmarks = unpack_abs_boxes_and_abs_landmarks(res['keypoints'], len(boxes), len(landmarks))
+    if random.random() <= self.prob_flip:
+      if self.debug:
+        print('applying flip')
+        print(boxes)
+      res = self.albumentations_lib.Compose([
+        self.albumentations_lib.augmentations.transforms.HorizontalFlip(p=1.0)
+      ], keypoint_params=self.keypoint_params)(image=img, keypoints=pack_abs_boxes_and_abs_landmarks(boxes, landmarks))
+      img = res['image']
+      boxes, landmarks = unpack_abs_boxes_and_abs_landmarks(res['keypoints'], len(boxes), len(landmarks))
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('flip')
+        augmentation_history['flip'] = [img, boxes, landmarks]
 
     if random.random() <= self.prob_stretch:
       stretch_x, stretch_y = self._get_stretch_shape(resize)
       img, boxes, landmarks = resize_by_ratio(img, boxes, landmarks, stretch_x / resize, stretch_y / resize)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('stretch')
+        augmentation_history['stretch'] = [img, boxes, landmarks]
 
     # crop to max output size and pad
     if self.debug:
       print('applying crop_and_random_pad_to_square')
     img, boxes, landmarks = crop_and_random_pad_to_square(img, boxes, landmarks, resize)
+    if return_augmentation_history:
+      augmentation_history['augmentations'].append('crop_and_random_pad_to_square')
+      augmentation_history['crop_and_random_pad_to_square'] = [img, boxes, landmarks]
 
     if self.debug:
       print('applying color distortion')
@@ -196,4 +224,10 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
                                                                      fill_value=random.randint(0, 255))
     ]
     img = self.albumentations_lib.Compose(transformations)(image=img)['image']
+
+    if return_augmentation_history:
+      augmentation_history['augmentations'].append('color_distortion')
+      augmentation_history['color_distortion'] = [img, boxes, landmarks]
+      return augmentation_history
+
     return img, boxes, landmarks

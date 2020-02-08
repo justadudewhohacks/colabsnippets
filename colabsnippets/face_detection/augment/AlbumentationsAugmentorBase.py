@@ -1,17 +1,7 @@
-from colabsnippets.utils import fix_boxes, abs_bbox_coords, rel_bbox_coords
+from colabsnippets.utils import fix_boxes, abs_bbox_coords, rel_bbox_coords, rel_landmarks_coords, abs_landmarks_coords
 from .crop_and_random_pad_to_square import crop_and_random_pad_to_square
 from .pad_to_square import pad_to_square
 from .resize_to_max import resize_to_max
-
-
-def abs_landmarks_coords(landmarks, hw):
-  height, width = hw[:2]
-  return [(x * width, y * height) for x, y in landmarks]
-
-
-def rel_landmarks_coords(landmarks, hw):
-  height, width = hw[:2]
-  return [(x / width, y / height) for x, y in landmarks]
 
 
 class AlbumentationsAugmentorBase:
@@ -23,13 +13,14 @@ class AlbumentationsAugmentorBase:
     self.ignore_log_augmentation_exception = False
     self.fallback_on_augmentation_exception = True
     self.resize_mode = 'resize_to_max_and_center_pad'
+    self.return_augmentation_history = False
 
   def _resize_to_max_and_center_pad(self, img, boxes, landmarks, image_size):
     img, boxes, landmarks = resize_to_max(img, boxes, landmarks, image_size)
     img, boxes, landmarks = pad_to_square(img, boxes, landmarks, image_size, mode='center')
     return img, boxes, landmarks
 
-  def _augment_abs_boxes(self, img, abs_boxes, abs_landmark, image_size):
+  def _augment_abs_boxes(self, img, abs_boxes, abs_landmark, image_size, return_augmentation_history=False):
     raise Exception("AlbumentationsAugmentorBase - _augment_abs_boxes not implemented")
 
   def augment(self, img, boxes=[], landmarks=[], image_size=None):
@@ -37,10 +28,20 @@ class AlbumentationsAugmentorBase:
       _boxes = fix_boxes([abs_bbox_coords(box, img.shape[0:2]) for box in boxes],
                          max(img.shape[0:2]), 1)
       _landmarks = [abs_landmarks_coords(l, img.shape[0:2]) for l in landmarks]
-      _img, _boxes, _landmarks = self._augment_abs_boxes(img, _boxes, _landmarks, image_size)
-      _boxes = [rel_bbox_coords(box, _img.shape[0:2]) for box in _boxes]
-      _landmarks = [rel_landmarks_coords(l, _img.shape[0:2]) for l in _landmarks]
-      return _img, _boxes, _landmarks
+      out = self._augment_abs_boxes(img, _boxes, _landmarks, image_size,
+                                    return_augmentation_history=self.return_augmentation_history)
+      if self.return_augmentation_history:
+        for aug in (['inputs'] + out['augmentations']):
+          _img, _boxes, _landmarks = out[aug]
+          _boxes = [rel_bbox_coords(box, _img.shape[0:2]) for box in _boxes]
+          _landmarks = [rel_landmarks_coords(l, _img.shape[0:2]) for l in _landmarks]
+          out[aug] = [_img, _boxes, _landmarks]
+        return out
+      else:
+        _img, _boxes, _landmarks = out
+        _boxes = [rel_bbox_coords(box, _img.shape[0:2]) for box in _boxes]
+        _landmarks = [rel_landmarks_coords(l, _img.shape[0:2]) for l in _landmarks]
+        return _img, _boxes, _landmarks
     except Exception as e:
       if not self.fallback_on_augmentation_exception:
         raise e
