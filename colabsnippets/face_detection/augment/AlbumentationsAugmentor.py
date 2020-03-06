@@ -6,7 +6,6 @@ import cv2
 from .AlbumentationsAugmentorBase import AlbumentationsAugmentorBase, resize_to_max
 from .anchor_based_sampling import anchor_based_sampling
 from .crop import crop
-from .crop_and_random_pad_to_square import crop_and_random_pad_to_square
 from .resize_by_ratio import resize_by_ratio
 
 
@@ -163,7 +162,8 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
         augmentation_history['augmentations'].append('rotate')
         augmentation_history['rotate'] = [img, boxes, landmarks]
 
-    if random.random() <= self.prob_anchor_based_sampling and self.anchor_based_sampling_anchors is not None:
+    is_apply_anchor_based_sampling = random.random() <= self.prob_anchor_based_sampling and self.anchor_based_sampling_anchors is not None
+    if is_apply_anchor_based_sampling:
       if self.debug:
         print('applying anchor_based_sampling')
       img, boxes, landmarks = anchor_based_sampling(img, boxes, landmarks, self.anchor_based_sampling_anchors,
@@ -193,12 +193,20 @@ class AlbumentationsAugmentor(AlbumentationsAugmentorBase):
         augmentation_history['stretch'] = [img, boxes, landmarks]
 
     # crop to max output size and pad
-    if self.debug:
-      print('applying crop_and_random_pad_to_square')
-    img, boxes, landmarks = crop_and_random_pad_to_square(img, boxes, landmarks, resize)
-    if return_augmentation_history:
-      augmentation_history['augmentations'].append('crop_and_random_pad_to_square')
-      augmentation_history['crop_and_random_pad_to_square'] = [img, boxes, landmarks]
+    if not is_apply_anchor_based_sampling and self.resize_mode == 'crop_or_resize_to_fixed_and_random_pad' and random.random() < 0.5:
+      if self.debug:
+        print('applying resize_to_fixed_and_random_pad')
+      img, boxes, landmarks = self._resize_to_fixed_and_pad(img, boxes, landmarks, resize, is_random_pad=True)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('crop_and_random_pad_to_square')
+        augmentation_history['crop_and_random_pad_to_square'] = [img, boxes, landmarks]
+    else:
+      if self.debug:
+        print('applying crop_and_random_pad_to_square')
+      img, boxes, landmarks = self._crop_to_max_and_pad(img, boxes, landmarks, resize, is_random_pad=True)
+      if return_augmentation_history:
+        augmentation_history['augmentations'].append('crop_and_random_pad_to_square')
+        augmentation_history['crop_and_random_pad_to_square'] = [img, boxes, landmarks]
 
     if self.debug:
       print('applying color distortion')

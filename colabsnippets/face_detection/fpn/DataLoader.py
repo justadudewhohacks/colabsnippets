@@ -1,4 +1,3 @@
-import random
 import types
 
 from ...BatchLoader import BatchLoader
@@ -122,12 +121,10 @@ class DataLoader(BatchLoader):
     for data in datas:
       image = self.load_image(data)
       boxes, landmarks = self.extract_data_labels(data)
-      if random.random() < self.augmentation_prob:
-        image, boxes, landmarks = self.image_augmentor.augment(image, boxes=boxes, landmarks=landmarks,
-                                                               image_size=image_size)
-      elif self.inputs_to_square:
-        image, boxes, landmarks = self.image_augmentor.resize_and_to_square(image, boxes=boxes, landmarks=landmarks,
-                                                                            image_size=image_size)
+      if self.inputs_to_square:
+        image, boxes, landmarks = self.image_augmentor.make_inputs(image, boxes=boxes, landmarks=landmarks,
+                                                                   image_size=image_size,
+                                                                   augmentation_prob=self.augmentation_prob)
       else:
         pass
       batch_x.append(image)

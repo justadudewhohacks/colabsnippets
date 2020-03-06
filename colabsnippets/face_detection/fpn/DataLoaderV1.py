@@ -117,10 +117,9 @@ class DataLoaderV1(BatchLoader):
     for data in datas:
       image = self.load_image(data)
       boxes = self.extract_data_labels(data)
-      if random.random() < self.augmentation_prob:
-        image, boxes = self.image_augmentor.augment(image, boxes=boxes, image_size=image_size)
-      else:
-        image, boxes = self.image_augmentor.resize_and_to_square(image, boxes=boxes, image_size=image_size)
+      image, boxes, landmarks = self.image_augmentor.make_inputs(image, boxes=boxes, landmarks=landmarks,
+                                                                 image_size=image_size,
+                                                                 augmentation_prob=self.augmentation_prob)
       batch_x.append(image)
       batch_y.append(fix_boxes(boxes, image_size, self.min_box_size_px))
 
