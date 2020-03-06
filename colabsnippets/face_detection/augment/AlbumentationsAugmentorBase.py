@@ -88,9 +88,9 @@ class AlbumentationsAugmentorBase:
 
     if resize_mode == 'resize_to_max_and_center_pad':
       img, boxes, landmarks = self._resize_to_max_and_center_pad(img, boxes, landmarks, image_size)
-    if resize_mode == 'resize_to_fixed_and_center_pad':
+    elif resize_mode == 'resize_to_fixed_and_center_pad':
       img, boxes, landmarks = self._resize_to_fixed_and_pad(img, boxes, landmarks, image_size, is_random_pad=False)
-    if resize_mode == 'resize_to_fixed_and_random_pad':
+    elif resize_mode == 'resize_to_fixed_and_random_pad':
       img, boxes, landmarks = self._resize_to_fixed_and_pad(img, boxes, landmarks, image_size, is_random_pad=True)
     elif resize_mode == 'crop_and_random_pad_to_square':
       img, boxes, landmarks = self._crop_to_max_and_pad(img, boxes, landmarks, image_size, is_random_pad=True)
