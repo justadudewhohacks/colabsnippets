@@ -37,6 +37,7 @@ def make_heads(stage_outputs, stage_anchors, simple_heads=True, is_sigmoid_offse
       outputs.append(scales)
       outputs.append(scores)
       outputs.append(scores2)
+  return outputs
 
 def create_fpn(bottom_up, detector_channels, stage_anchors, is_sigmoid_offsets=False, stage_strides=None,
                top_down_out_channels=64, input_size=640, with_batch_norm=True, with_top_down=True,
