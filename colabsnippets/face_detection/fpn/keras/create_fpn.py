@@ -2,7 +2,9 @@ from keras.layers import Input
 
 import colabsnippets.face_detection.fpn.keras.layers as L
 
-def make_heads(stage_outputs, stage_anchors, simple_heads=True, is_sigmoid_offsets=False, num_class_outputs=1):
+
+def make_heads(stage_outputs, stage_anchors, with_batch_norm=False, simple_heads=True, is_sigmoid_offsets=False,
+               num_class_outputs=1):
   outputs = []
   for stage_idx, stage_output in enumerate(stage_outputs):
     num_anchors = len(stage_anchors[stage_idx])
@@ -23,12 +25,13 @@ def make_heads(stage_outputs, stage_anchors, simple_heads=True, is_sigmoid_offse
         scales = L.conv1x1(stage_output, 2, 'output_' + anchor_id + '_scales')
         scores_logits = L.conv1x1(stage_output, 1, 'conv_scores_' + anchor_id)
       else:
-        offsets = L.depthwise_separable_conv2d(stage_output, 2,
-                            'conv_offsets_' + anchor_id if is_sigmoid_offsets else 'output_' + anchor_id + '_offsets')
-        scales = L.depthwise_separable_conv2d(stage_output, 2, 'output_' + anchor_id + '_scales')
-        scores_logits = L.depthwise_separable_conv2d(stage_output, num_class_outputs, 'conv_scores_' + anchor_id)
-
-
+        offsets = L.depthwise_separable_conv2d_with_intermediate(stage_output, 2, 'output_' + anchor_id + '_offsets',
+                                                                 with_batch_norm=with_batch_norm)
+        scales = L.depthwise_separable_conv2d_with_intermediate(stage_output, 2, 'output_' + anchor_id + '_scales',
+                                                                with_batch_norm=with_batch_norm)
+        scores_logits = L.depthwise_separable_conv2d_with_intermediate(stage_output, num_class_outputs,
+                                                                       'conv_scores_' + anchor_id,
+                                                                       with_batch_norm=with_batch_norm)
 
       scores = L.sigmoid(scores_logits, 'output_' + anchor_id + '_object')
       scores2 = L.sigmoid(scores_logits, 'output_' + anchor_id + '_no_object')
@@ -38,6 +41,7 @@ def make_heads(stage_outputs, stage_anchors, simple_heads=True, is_sigmoid_offse
       outputs.append(scores)
       outputs.append(scores2)
   return outputs
+
 
 def create_fpn(bottom_up, detector_channels, stage_anchors, is_sigmoid_offsets=False, stage_strides=None,
                top_down_out_channels=64, input_size=640, with_batch_norm=True, with_top_down=True,
@@ -68,4 +72,5 @@ def create_fpn(bottom_up, detector_channels, stage_anchors, is_sigmoid_offsets=F
       L.ssh_detection_module(out, stage_out_channels[idx], 'det_' + str(idx), with_batch_norm=with_batch_norm) for
       idx, out in enumerate(stage_outputs)]
 
-  return inputs, make_heads(stage_outputs, stage_anchors, simple_heads=simple_heads, num_class_outputs=num_class_outputs, is_sigmoid_offsets=is_sigmoid_offsets)
+  return inputs, make_heads(stage_outputs, stage_anchors, simple_heads=simple_heads,
+                            num_class_outputs=num_class_outputs, is_sigmoid_offsets=is_sigmoid_offsets, with_batch_norm=with_batch_norm)
