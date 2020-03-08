@@ -122,14 +122,14 @@ def depthwise_conv2d(x, name, strides=(1, 1), with_batch_norm=False):
 
 
 def depthwise_separable_conv2d_with_intermediate(x, channels_out, name, strides=(1, 1), with_batch_norm=False):
-  out = depthwise_conv2d(x, name + "/depthwise_conv", strides=strides, with_batch_norm=False)
+  out = depthwise_conv2d(x, name + "/depthwise_conv", strides=strides, with_batch_norm=with_batch_norm)
   out = relu(out, name + '/relu_intermediate')
   out = conv1x1(out, channels_out, name=name + "/pointwise_conv", with_batch_norm=with_batch_norm)
   return out
 
 
 def depthwise_separable_conv2d_down_with_intermediate(x, channels_out, name, with_batch_norm=False):
-  return depthwise_separable_conv2d_with_intermediate(x, channels_out, name, strides=(2, 2), with_batch_norm=False)
+  return depthwise_separable_conv2d_with_intermediate(x, channels_out, name, strides=(2, 2), with_batch_norm=with_batch_norm)
 
 
 def xception_reduction_module(x, channels_out, name, activate_inputs=True, with_batch_norm=False):
